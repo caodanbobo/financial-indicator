@@ -18,6 +18,65 @@ def _e(s):
     return html.escape(str(s))
 
 
+def sparkline(points, thresholds=(), width=320, height=56, line_color="#64748b"):
+    """内联 SVG 迷你折线图（零依赖）。points: [(date_str, value)...]；
+    thresholds: [(value, color, label)...] 画虚线。返回 SVG 字符串，无数据返回空。"""
+    pts = [(d, v) for d, v in points if v is not None]
+    if len(pts) < 2:
+        return ""
+    vals = [v for _, v in pts] + [t[0] for t in thresholds]
+    lo, hi = min(vals), max(vals)
+    if hi - lo < 1e-9:
+        hi = lo + 1
+    pad = (hi - lo) * 0.12
+    lo, hi = lo - pad, hi + pad
+    n = len(pts)
+    step = width / (n - 1)
+    left_pad = 2
+    right_pad = 46  # 右侧留给阈值标注
+
+    def xy(i, v):
+        x = left_pad + i * (width - left_pad - right_pad) / (n - 1)
+        y = height - 4 - (v - lo) / (hi - lo) * (height - 8)
+        return x, y
+
+    poly = " ".join(f"{xy(i, v)[0]:.1f},{xy(i, v)[1]:.1f}" for i, (_, v) in enumerate(pts))
+    svg = [f'<svg viewBox="0 0 {width} {height}" class="spark" role="img">']
+    for tv, color, label in thresholds:
+        if not (lo <= tv <= hi):
+            continue
+        y = xy(0, tv)[1]
+        svg.append(f'<line x1="{left_pad}" y1="{y:.1f}" x2="{width - right_pad}" y2="{y:.1f}" '
+                   f'stroke="{color}" stroke-width="1" stroke-dasharray="4 3" opacity="0.7"/>')
+        svg.append(f'<text x="{width - right_pad + 3}" y="{y + 3:.1f}" font-size="8.5" '
+                   f'fill="{color}">{_e(label)}</text>')
+    svg.append(f'<polyline points="{poly}" fill="none" stroke="{line_color}" '
+               f'stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>')
+    lx, ly = xy(n - 1, pts[-1][1])
+    svg.append(f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="2.6" fill="{line_color}"/>')
+    svg.append("</svg>")
+    cap = f'<div class="spark-cap">近{len(pts)}天　{pts[0][0][5:]} ~ {pts[-1][0][5:]}　最新 {pts[-1][1]:g}</div>'
+    return "".join(svg) + cap
+
+
+def _macro_html(macro):
+    """避险/宏观区块。"""
+    rows = []
+    for r in macro["rows"]:
+        cls = " class='macro-hl'" if r.get("highlight") else ""
+        meta = f"数据日期 {r['date']}"
+        if r.get("stale"):
+            meta += "　<b class='stale'>⚠ 数据陈旧</b>"
+        if r.get("note"):
+            meta += f"　{_e(r['note'])}"
+        rows.append(
+            f"<tr{cls}><td>{_e(r['label'])}</td><td class='macro-val'>{_e(r['value_text'])}</td>"
+            f"<td class='macro-meta'>{meta}</td></tr>"
+        )
+    return ('<div class="card"><div class="card-title">避险 / 宏观</div>'
+            '<table class="macro">' + "".join(rows) + "</table></div>")
+
+
 def _card_html(card):
     zone = card["zone"]
     color = ZONE_COLORS[zone]
@@ -35,6 +94,10 @@ def _card_html(card):
     lines.append(f'<div class="zone" style="background:{color}">{_e(card["zone_text"])}</div>')
     if card.get("distance_text"):
         lines.append(f'<div class="distance">{_e(card["distance_text"])}</div>')
+
+    # 趋势小图（内联 SVG，无外部依赖）
+    if card.get("trend_svg"):
+        lines.append(card["trend_svg"])
 
     # 门槛表
     if card.get("threshold_text"):
@@ -63,6 +126,8 @@ def render(snapshot, out_path, extra_html=""):
     anchor_meta = f'数据日期 {anchor["date"]}'
     if anchor.get("stale"):
         anchor_meta += "　<b class='stale'>⚠ 数据陈旧</b>"
+    anchor_trend = anchor.get("trend_svg", "")
+    macro_html = _macro_html(snapshot["macro"]) if snapshot.get("macro") else ""
 
     distortion_banner = ""
     if snapshot.get("distortion"):
@@ -105,6 +170,16 @@ def render(snapshot, out_path, extra_html=""):
   .meta {{ font-size:12px; color:#9aa0a6; margin-top:6px; }}
   .stale {{ color:#d97706; }}
   footer {{ font-size:12px; color:#9aa0a6; text-align:center; margin-top:8px; }}
+  /* ---- 趋势小图（内联 SVG） ---- */
+  .spark {{ width:100%; height:auto; margin-top:8px; }}
+  .spark-cap {{ font-size:10px; color:#b0b4b9; margin-top:1px; }}
+  /* ---- 避险/宏观区块 ---- */
+  table.macro {{ width:100%; border-collapse:collapse; font-size:13px; }}
+  table.macro td {{ padding:6px 4px; border-bottom:1px solid #f5f6f7; vertical-align:baseline; }}
+  table.macro tr:last-child td {{ border-bottom:none; }}
+  .macro-val {{ font-size:17px; font-weight:700; white-space:nowrap; }}
+  .macro-meta {{ font-size:11px; color:#9aa0a6; text-align:right; }}
+  tr.macro-hl td {{ background:#fdf6e7; }}
   /* ---- 组合模块（仅本地页） ---- */
   .pf-card {{ border-left:6px solid #6b7280; }}
   .pf-title {{ font-size:16px; font-weight:600; margin-bottom:8px; }}
@@ -130,9 +205,11 @@ def render(snapshot, out_path, extra_html=""):
   <header>
     <div class="snap">快照 {_e(snapshot["generated_at"])}</div>
     <div class="anchor">10Y 国债 {_e(anchor["value_text"])}　<small>{anchor_meta}</small></div>
+    {anchor_trend}
   </header>
   {distortion_banner}
   {cards_html}
+  {macro_html}
   {extra_html}
   <footer>信号灯规则与阈值见个人投资笔记 · 数据为公开行情整理，不构成投资建议</footer>
 </div>

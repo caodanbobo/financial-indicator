@@ -7,6 +7,7 @@
 from . import network  # noqa: F401  副作用：设置 NO_PROXY，必须先于 akshare
 
 import akshare as ak
+import pandas as pd
 
 
 def fetch_anchor():
@@ -51,4 +52,48 @@ def fetch_fx():
         "USD": float(last["美元"]) / 100,
         "JPY": float(last["日元"]) / 100,
         "date": str(last["日期"]),
+    }
+
+
+def fetch_gold_cny():
+    """上金所黄金基准价（元/g）。SGE 更新有延迟，如实返回数据日期。
+
+    返回 {"gold_cny": {"value": 895.6, "date": "2026-09-28"}}。
+    """
+    df = ak.spot_golden_benchmark_sge()
+    last = df.iloc[-1]
+    price = last["晚盘价"] if pd.notna(last["晚盘价"]) else last["早盘价"]
+    return {"gold_cny": {"value": float(price), "date": str(last["交易时间"])}}
+
+
+def fetch_gold_silver_usd():
+    """国际现货金银（美元/盎司，新浪伦敦金银，盘中实时）。"""
+    df = ak.futures_foreign_commodity_realtime(symbol=["XAU", "XAG"])
+    vals = dict(zip(df["名称"], df["最新价"]))
+    d = str(df.iloc[0]["日期"])
+    return {
+        "gold_usd": {"value": float(vals["伦敦金"]), "date": d},
+        "silver_usd": {"value": float(vals["伦敦银"]), "date": d},
+    }
+
+
+def fetch_tips():
+    """美国 10Y TIPS 实际利率（FRED DFII10 免 key CSV）。缺失值是字符串 '.'。"""
+    import requests
+    from io import StringIO
+
+    r = requests.get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFII10", timeout=30)
+    r.raise_for_status()
+    df = pd.read_csv(StringIO(r.text))
+    df = df[df["DFII10"] != "."]
+    last = df.iloc[-1]
+    return {"tips": {"value": float(last["DFII10"]), "date": str(last["observation_date"])}}
+
+
+def fetch_fx_macro():
+    """汇率（复用 fetch_fx），拆成宏观区块需要的两条。"""
+    fx = fetch_fx()
+    return {
+        "usd_cny": {"value": fx["USD"], "date": fx["date"]},
+        "jpy_cny": {"value": fx["JPY"], "date": fx["date"]},
     }

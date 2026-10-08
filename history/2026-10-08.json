@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-08 21:25",
+  "generated_at": "2026-10-08 21:32",
   "anchor": {
     "value": 1.6899,
     "date": "2026-10-08",
@@ -41,6 +41,43 @@
         "dividend2": 4.15,
         "date": "2026-10-08"
       }
+    }
+  },
+  "macro": {
+    "gold_cny": {
+      "value": 907.5,
+      "date": "2026-09-29",
+      "stale": false
+    },
+    "gold_usd": {
+      "value": 4129.37,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "silver_usd": {
+      "value": 59.18,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "tips": {
+      "value": 2.91,
+      "date": "2026-10-06",
+      "stale": false
+    },
+    "usd_cny": {
+      "value": 6.7367,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "jpy_cny": {
+      "value": 0.042642,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "gs_ratio": {
+      "value": 69.8,
+      "date": "2026-10-08",
+      "stale": false
     }
   }
 }

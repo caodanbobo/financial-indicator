@@ -54,6 +54,141 @@ def metric_value(card_cfg, index_data):
     return index_data[card_cfg["metric"]]
 
 
+# ---- 宏观/避险层 ----
+
+MACRO_FETCHERS = [
+    (sources.fetch_gold_cny, ["gold_cny"]),
+    (sources.fetch_gold_silver_usd, ["gold_usd", "silver_usd"]),
+    (sources.fetch_tips, ["tips"]),
+    (sources.fetch_fx_macro, ["usd_cny", "jpy_cny"]),
+]
+
+MACRO_LABELS = {
+    "gold_cny": "黄金（人民币）",
+    "gold_usd": "黄金（国际）",
+    "gs_ratio": "金银比",
+    "tips": "美国10Y TIPS",
+    "usd_cny": "USD/CNY",
+    "jpy_cny": "JPY/CNY",
+}
+
+
+def fetch_macro(hist_macro, retries):
+    """抓取宏观指标，逐 key 降级到历史读数。返回 {key: {value, date, stale}}。"""
+    macro = {}
+    for fn, keys in MACRO_FETCHERS:
+        try:
+            got = fetch_with_retry(fn, retries)
+            for k in keys:
+                macro[k] = {**got[k], "stale": False}
+        except Exception as e:  # noqa: BLE001
+            for k in keys:
+                old = hist_macro.get(k)
+                if old:
+                    macro[k] = {"value": old["value"], "date": old["date"], "stale": True}
+                else:
+                    macro[k] = {"value": None, "date": "—", "stale": True}
+            print(f"[warn] 宏观抓取失败（{keys}），已降级: {type(e).__name__}: {str(e)[:100]}")
+    return macro
+
+
+def build_macro_view(macro, macro_cfg):
+    """把宏观读数组装成展示行（含金银比自算与笔记阈值标注）。"""
+    rows = []
+
+    def add(key, value_text, note="", highlight=False):
+        m = macro.get(key)
+        if not m or m["value"] is None:
+            return
+        rows.append({"label": MACRO_LABELS[key], "value_text": value_text,
+                     "date": m["date"], "stale": m["stale"], "note": note,
+                     "highlight": highlight})
+
+    add("gold_cny", f"{macro['gold_cny']['value']:,.1f} 元/g" if macro.get("gold_cny", {}).get("value") else "",
+        note="上金所基准价，更新有延迟")
+    add("gold_usd", f"${macro['gold_usd']['value']:,.2f}" if macro.get("gold_usd", {}).get("value") else "")
+
+    g = macro.get("gold_usd", {}).get("value")
+    s = macro.get("silver_usd", {}).get("value")
+    if g and s:
+        ratio = g / s
+        hi = ratio > macro_cfg["gold_silver_ratio_alert"]
+        macro["gs_ratio"] = {"value": round(ratio, 1),
+                             "date": macro["gold_usd"]["date"],
+                             "stale": macro["gold_usd"]["stale"] or macro["silver_usd"]["stale"]}
+        add("gs_ratio", f"{ratio:.1f}",
+            note=f"市场恐慌区（白银相对低估，>{macro_cfg['gold_silver_ratio_alert']:g}）" if hi else "",
+            highlight=hi)
+
+    tips_alert = macro_cfg["tips_alert"]
+    t = macro.get("tips", {}).get("value")
+    add("tips", f"{t:.2f}%" if t is not None else "",
+        note=f"高息环境，常为黄金底部区间（>{tips_alert:g}%）" if t is not None and t > tips_alert else "",
+        highlight=t is not None and t > tips_alert)
+
+    add("usd_cny", f"{macro['usd_cny']['value']:.4f}" if macro.get("usd_cny", {}).get("value") else "")
+    add("jpy_cny", f"{macro['jpy_cny']['value']:.4f}" if macro.get("jpy_cny", {}).get("value") else "")
+    return rows
+
+
+# ---- 历史趋势 ----
+
+def load_history_series(history_dir, days):
+    """按日期升序返回最近 days 天的快照列表 [(date_str, snapshot_dict)...]。"""
+    files = sorted(glob.glob(os.path.join(history_dir, "*.json")))[-days:]
+    out = []
+    for path in files:
+        try:
+            with open(path, encoding="utf-8") as f:
+                out.append((os.path.basename(path)[:10], json.load(f)))
+        except Exception:  # noqa: BLE001
+            continue
+    return out
+
+
+def build_trends(history, card_cfgs, trend_days):
+    """从历史上凑趋势序列：10Y、各息差卡的息差、PE 卡的 PE。
+
+    返回 {"anchor": [(d, v)], card_id: [(d, v)]}。
+    """
+    anchor_pts = []
+    card_pts = {c["id"]: [] for c in card_cfgs}
+    for d, snap in history:
+        av = snap.get("anchor", {}).get("value")
+        if av is not None:
+            anchor_pts.append((d, av))
+        cards = snap.get("cards", {})
+        for c in card_cfgs:
+            rec = cards.get(c["id"], {})
+            allv = rec.get("all")
+            if not allv or av is None:
+                continue
+            if c["type"] == "spread":
+                v = allv.get(c["metric"])
+                if v is not None:
+                    card_pts[c["id"]].append((d, round(v - av, 3)))
+            else:
+                v = allv.get(c["metric"])
+                if v is not None:
+                    card_pts[c["id"]].append((d, v))
+    return {"anchor": anchor_pts, **card_pts}
+
+
+def trend_thresholds(card_cfg):
+    """各卡片趋势图叠加的虚线门槛（息差卡用息差口径，PE 卡用 PE 口径）。"""
+    if card_cfg["type"] == "spread":
+        return [
+            (card_cfg["red_below"], "#e5484d", f"🔴{card_cfg['red_below']:g}"),
+            (card_cfg["green_at"], "#2ba471", f"🟢{card_cfg['green_at']:g}"),
+            (card_cfg["green2_at"], "#0e8a5f", f"🟢🟢{card_cfg['green2_at']:g}"),
+        ]
+    return [
+        (card_cfg["red_at"], "#e5484d", f"🔴{card_cfg['red_at']:g}"),
+        (card_cfg["green_at"], "#2ba471", f"🟢{card_cfg['green_at']:g}"),
+        (card_cfg["green2_at"], "#0e8a5f", f"🟢🟢{card_cfg['green2_at']:g}"),
+    ]
+
+
 def build_card_view(card_cfg, reading, anchor_value, distortion, distortion_months):
     """把一张卡片的读数 + 配置算成页面展示 dict。"""
     m = card_cfg["metric"]
@@ -132,6 +267,7 @@ def main(local=False):
     hist = latest_history(history_dir) or {}
     hist_anchor = hist.get("anchor")
     hist_cards = hist.get("cards", {})
+    hist_macro = hist.get("macro", {})
 
     # ---- 锚：10Y 国债
     try:
@@ -164,23 +300,39 @@ def main(local=False):
         view_cards.append(build_card_view(card_cfg, reading, anchor["value"],
                                           distortion, cfg["distortion_months"]))
 
+    # ---- 宏观/避险层
+    macro = fetch_macro(hist_macro, retries)
+    macro_rows = build_macro_view(macro, cfg["macro"])
+
     # ---- 落历史
     os.makedirs(history_dir, exist_ok=True)
     snapshot = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M"),
         "anchor": anchor,
         "cards": snapshot_cards,
+        "macro": macro,
     }
     with open(os.path.join(history_dir, f"{today}.json"), "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=2)
 
+    # ---- 趋势（含今天刚落的快照）
+    trend_days = cfg.get("trend", {}).get("days", 90)
+    history = load_history_series(history_dir, trend_days)
+    trends = build_trends(history, cfg["cards"], trend_days)
+    anchor_trend = generate_site.sparkline(trends["anchor"])
+    for card_cfg, view in zip([c for c in cfg["cards"] if c["id"] in snapshot_cards], view_cards):
+        pts = trends.get(card_cfg["id"], [])
+        view["trend_svg"] = generate_site.sparkline(pts, thresholds=trend_thresholds(card_cfg))
+
     # ---- 生成页面
     page_data = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M"),
-        "anchor": {"value_text": f"{anchor['value']:.2f}%", "date": anchor["date"], "stale": anchor["stale"]},
+        "anchor": {"value_text": f"{anchor['value']:.2f}%", "date": anchor["date"],
+                   "stale": anchor["stale"], "trend_svg": anchor_trend},
         "distortion": distortion,
         "distortion_months": cfg["distortion_months"],
         "cards": view_cards,
+        "macro": {"rows": macro_rows},
     }
     out_path = os.path.join(cfg["site_dir"], "index.html")
     generate_site.render(page_data, out_path)
