@@ -1,0 +1,61 @@
+# 投资指标仪表盘 — 阈值与标的核心配置
+# 纪律：阈值只允许在校准窗口（每季财报季后 / 每年4月）修改。
+
+# 全局锚：中国10年期国债收益率
+anchor:
+  name: 中国10Y国债收益率
+  source: bond_zh_us_rate   # akshare 接口；备选 bond_china_yield
+
+# 分红季失真期：这些月份的读数只记录、不触发信号
+distortion_months: [5, 6, 7]
+
+# 信号灯卡片
+cards:
+  - id: sh515450
+    name: 515450 红利低波50
+    type: spread            # 息差型：指数股息率 - 10Y
+    index_code: H30269      # 平替参照指数（红利低波）
+    index_name: 红利低波
+    metric: dividend1       # csindex 口径：股息率1（总股本口径）
+    metric_label: 股息率TTM（口径1）
+    note: ""
+    # 息差阈值（百分点）
+    clearout_below: 1.0     # 低于此值标"清仓线"
+    red_below: 1.5          # 息差 < 1.5 → 🔴 停止区
+    green_at: 3.2           # 息差 ≥ 3.2 → 🟢 击球区
+    green2_at: 4.3          # 息差 ≥ 4.3 → 🟢🟢 重仓区
+
+  - id: sh515180
+    name: 515180 中证红利
+    type: spread
+    index_code: "000922"    # 中证红利指数
+    index_name: 中证红利
+    metric: dividend1
+    metric_label: 股息率TTM（口径1）
+    note: PB 未纳入（免费数据源暂缺）
+    clearout_below: null
+    red_below: 1.5
+    green_at: 3.0
+    green2_at: 4.0
+
+  - id: sz159209
+    name: 159209 红利质量
+    type: pe                # PE 型：值越低越好
+    index_code: "932315"    # 中证红利质量指数
+    index_name: 中证红利质量
+    metric: pe2             # csindex 口径：市盈率2（与笔记锚定口径一致）
+    metric_label: PE-TTM（口径2）
+    note: ""
+    clearout_above: 22      # PE ≥ 22 标"清仓线"
+    red_at: 20              # PE ≥ 20 → 🔴 停止区
+    green_at: 16            # PE ≤ 16 → 🟢 击球区
+    green2_at: 13           # PE ≤ 13 → 🟢🟢 重仓区
+
+# 抓取配置
+fetch:
+  timeout_seconds: 30
+  retries: 2
+
+# 历史快照目录 & 生成页面位置
+history_dir: history
+site_dir: site

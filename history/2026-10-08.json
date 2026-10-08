@@ -1,0 +1,46 @@
+{
+  "generated_at": "2026-10-08 20:48",
+  "anchor": {
+    "value": 1.6899,
+    "date": "2026-10-08",
+    "stale": false
+  },
+  "cards": {
+    "sh515450": {
+      "value": 4.34,
+      "date": "2026-10-08",
+      "stale": false,
+      "all": {
+        "pe1": 8.33,
+        "pe2": 7.94,
+        "dividend1": 4.34,
+        "dividend2": 4.98,
+        "date": "2026-10-08"
+      }
+    },
+    "sh515180": {
+      "value": 4.23,
+      "date": "2026-10-08",
+      "stale": false,
+      "all": {
+        "pe1": 8.92,
+        "pe2": 10.9,
+        "dividend1": 4.23,
+        "dividend2": 4.19,
+        "date": "2026-10-08"
+      }
+    },
+    "sz159209": {
+      "value": 15.85,
+      "date": "2026-10-08",
+      "stale": false,
+      "all": {
+        "pe1": 17.98,
+        "pe2": 15.85,
+        "dividend1": 3.9,
+        "dividend2": 4.15,
+        "date": "2026-10-08"
+      }
+    }
+  }
+}
