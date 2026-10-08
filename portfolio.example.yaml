@@ -1,0 +1,29 @@
+# 组合持仓示例（金额全部为虚构占位，仅演示格式）。
+# 使用方法：cp portfolio.example.yaml portfolio.yaml，然后填入真实持仓。
+# portfolio.yaml 已被 .gitignore 排除，绝不会进 git / 被上传。
+#
+# 字段说明：
+#   name      标的名称（自由文本）
+#   platform  平台（券商/银行/支付宝/链上……自由文本）
+#   category  资产类别：防守核心 / 进攻型红利 / 成长引擎 / 避险 / 弹药（冻结层条目可随意填）
+#   layer     onshore=在岸盘（参与再平衡判定）｜ frozen=冻结层（只显示，不参与）
+#   amount    当前总金额（按 currency 币种计；每月核对日手动更新）
+#   currency  CNY / USD / JPY（外币按当天汇率自动折算）
+#   updated   最后更新日期 YYYY-MM-DD（超 35 天未更新会标灰提醒）
+#   etf       true 标记场内 ETF（用于"单一 ETF ≤ 在岸盘 40%"红线检查），可省略
+
+holdings:
+  # ---- 在岸盘 ----
+  - { name: 红利低波50ETF 515450, platform: 示例证券,  category: 防守核心,   layer: onshore, amount: 30000, currency: CNY, updated: 2026-10-05, etf: true }
+  - { name: 中证红利ETF 515180,  platform: 示例证券,  category: 防守核心,   layer: onshore, amount: 15000, currency: CNY, updated: 2026-10-05, etf: true }
+  - { name: 红利质量ETF 159209,  platform: 示例证券,  category: 进攻型红利, layer: onshore, amount: 8000,  currency: CNY, updated: 2026-10-05, etf: true }
+  - { name: 纳指ETF,             platform: 示例证券,  category: 成长引擎,   layer: onshore, amount: 15000, currency: CNY, updated: 2026-10-05, etf: true }
+  - { name: 恒生科技ETF,         platform: 示例证券,  category: 成长引擎,   layer: onshore, amount: 5000,  currency: CNY, updated: 2026-08-20, etf: true }
+  - { name: 黄金ETF,             platform: 示例证券,  category: 避险,       layer: onshore, amount: 5000,  currency: CNY, updated: 2026-10-05, etf: true }
+  - { name: 货币基金,            platform: 示例银行,  category: 弹药,       layer: onshore, amount: 7000,  currency: CNY, updated: 2026-10-05 }
+  - { name: 美元现金,            platform: 示例银行,  category: 弹药,       layer: onshore, amount: 500,   currency: USD, updated: 2026-10-05 }
+
+  # ---- 冻结层（只显示金额与占比，不参与在岸盘再平衡） ----
+  - { name: 离岸标普500指数基金, platform: 示例离岸券商, category: 冻结层, layer: frozen, amount: 3000, currency: USD, updated: 2026-09-15 }
+  - { name: 日元存款,            platform: 示例银行,    category: 冻结层, layer: frozen, amount: 200000, currency: JPY, updated: 2026-09-15 }
+  - { name: BTC 市值,            platform: 链上,        category: 冻结层, layer: frozen, amount: 1500, currency: USD, updated: 2026-10-05 }

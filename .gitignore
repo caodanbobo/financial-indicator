@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 .DS_Store
 portfolio.yaml
+local/
+
+# 本地汇率缓存（仅 --local 用，无需入库）
+history/fx_cache.json

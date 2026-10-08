@@ -37,3 +37,18 @@ def fetch_index_value(index_code):
         "dividend2": float(last["股息率2"]),
         "date": str(last["日期"]),
     }
+
+
+def fetch_fx():
+    """USD/JPY 兑人民币汇率（外币 1 单位 = 多少人民币）。
+
+    currency_boc_safe 很慢（20s~160s）且偶发 SSL 失败，调用方应加重试并做本地缓存。
+    返回 {"USD": 6.7351, "JPY": 0.042727, "date": "2026-09-30"}。
+    """
+    df = ak.currency_boc_safe()
+    last = df.iloc[-1]
+    return {
+        "USD": float(last["美元"]) / 100,
+        "JPY": float(last["日元"]) / 100,
+        "date": str(last["日期"]),
+    }

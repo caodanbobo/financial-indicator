@@ -5,6 +5,7 @@
 单源抓取失败时降级为最近一次历史读数并标"数据陈旧"，不阻塞其他指标。
 """
 
+import argparse
 import glob
 import json
 import os
@@ -14,6 +15,7 @@ from datetime import datetime
 import yaml
 
 import generate_site
+import portfolio
 import signals
 from fetchers import sources
 
@@ -119,7 +121,7 @@ def build_card_view(card_cfg, reading, anchor_value, distortion, distortion_mont
     return out
 
 
-def main():
+def main(local=False):
     cfg = load_config()
     history_dir = cfg["history_dir"]
     retries = cfg["fetch"]["retries"]
@@ -184,6 +186,21 @@ def main():
     generate_site.render(page_data, out_path)
     print(f"done. snapshot -> {history_dir}/{today}.json, page -> {out_path}")
 
+    # ---- 本地组合页（含持仓，仅在 --local 时生成，输出到 local/，绝不上传）
+    if local:
+        local_html, _ = portfolio.build_section(cfg)
+        local_path = os.path.join(cfg["portfolio"]["local_dir"], "index.html")
+        generate_site.render(page_data, local_path, extra_html=local_html)
+        print(f"local page -> {local_path}（含持仓，仅本地，不上传）")
+
+
+def cli():
+    parser = argparse.ArgumentParser(description="每日快照：抓取 → 信号灯 → 静态页")
+    parser.add_argument("--local", action="store_true",
+                        help="额外生成含持仓的本地组合页 local/index.html（数据不出本机）")
+    return parser.parse_args()
+
 
 if __name__ == "__main__":
-    main()
+    args = cli()
+    main(local=args.local)

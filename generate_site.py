@@ -56,8 +56,8 @@ def _card_html(card):
     )
 
 
-def render(snapshot, out_path):
-    """snapshot: main.py 构建好的展示字典。"""
+def render(snapshot, out_path, extra_html=""):
+    """snapshot: main.py 构建好的展示字典。extra_html 追加在指标卡片之后（本地组合模块用）。"""
     cards_html = "".join(_card_html(c) for c in snapshot["cards"])
     anchor = snapshot["anchor"]
     anchor_meta = f'数据日期 {anchor["date"]}'
@@ -105,6 +105,24 @@ def render(snapshot, out_path):
   .meta {{ font-size:12px; color:#9aa0a6; margin-top:6px; }}
   .stale {{ color:#d97706; }}
   footer {{ font-size:12px; color:#9aa0a6; text-align:center; margin-top:8px; }}
+  /* ---- 组合模块（仅本地页） ---- */
+  .pf-card {{ border-left:6px solid #6b7280; }}
+  .pf-title {{ font-size:16px; font-weight:600; margin-bottom:8px; }}
+  .pf-title2 {{ font-size:14px; font-weight:600; margin:12px 0 6px; }}
+  .pf-sum {{ font-size:13px; color:#4b5563; margin-bottom:8px; }}
+  .pf-sum small {{ color:#9aa0a6; }}
+  table.pf {{ width:100%; border-collapse:collapse; font-size:12px; margin-bottom:6px; }}
+  table.pf th {{ text-align:left; color:#9aa0a6; font-weight:400; padding:3px 4px;
+                border-bottom:1px solid #eef0f2; }}
+  table.pf td {{ padding:4px; border-bottom:1px solid #f5f6f7; }}
+  tr.pf-yellow td {{ background:#fdf6e7; }}
+  tr.pf-red td {{ background:#fdecec; }}
+  tr.pf-stale td {{ color:#b0b4b9; }}
+  .pf-redline {{ font-size:13px; color:#e5484d; font-weight:600; margin:6px 0; }}
+  .pf-advice-title {{ font-size:14px; font-weight:600; margin:10px 0 2px; }}
+  .pf-advice-mode {{ font-size:12px; color:#6b7280; margin-bottom:4px; }}
+  ul.pf-advice {{ font-size:13px; padding-left:20px; }}
+  .pf-note {{ font-size:12px; color:#9aa0a6; margin-top:8px; }}
 </style>
 </head>
 <body>
@@ -115,6 +133,7 @@ def render(snapshot, out_path):
   </header>
   {distortion_banner}
   {cards_html}
+  {extra_html}
   <footer>信号灯规则与阈值见个人投资笔记 · 数据为公开行情整理，不构成投资建议</footer>
 </div>
 </body>
