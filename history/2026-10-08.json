@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-08 13:36",
+  "generated_at": "2026-10-08 21:48",
   "anchor": {
     "value": 1.6899,
     "date": "2026-10-08",
@@ -50,12 +50,12 @@
       "stale": false
     },
     "gold_usd": {
-      "value": 4125.56,
+      "value": 4124.59,
       "date": "2026-10-08",
       "stale": false
     },
     "silver_usd": {
-      "value": 59.14,
+      "value": 59.18,
       "date": "2026-10-08",
       "stale": false
     },
@@ -75,7 +75,67 @@
       "stale": false
     },
     "gs_ratio": {
-      "value": 69.8,
+      "value": 69.7,
+      "date": "2026-10-08",
+      "stale": false
+    }
+  },
+  "crypto": {
+    "btc_usd": {
+      "value": 81852.0,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "eth_usd": {
+      "value": 2510.7,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "ahr999": {
+      "value": 0.5251,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "susds_apy": {
+      "value": 3.8,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "sdai_apy": {
+      "value": 1.25,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "usdy_apy": {
+      "value": 3.64,
+      "date": "2026-10-08",
+      "stale": false
+    }
+  },
+  "im": {
+    "im_spot": {
+      "value": 7138.584,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "im_fut": {
+      "value": 6846.2,
+      "date": "2026-10-08",
+      "code": "IM2703",
+      "stale": false
+    },
+    "im_discount_ann": {
+      "value": 9.23,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "csi1000_pe": {
+      "value": 28.16,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "csi1000_pe_pct5": {
+      "value": 74.0,
       "date": "2026-10-08",
       "stale": false
     }

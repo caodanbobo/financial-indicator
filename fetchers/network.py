@@ -23,3 +23,27 @@ def system_proxy():
             http = "http://" + http
         return {"http": http, "https": http}
     return None
+
+
+def get_json(url, timeout=20, prefer_proxy=False):
+    """GET JSON，代理/直连自动互备。
+
+    prefer_proxy=True（如 CoinGecko，本机直连被墙）：先系统代理后直连；
+    否则先直连后代理。Actions 上无系统代理，自然走直连。
+    """
+    import requests
+
+    proxy = system_proxy()
+    attempts = [(True, proxy), (False, None)] if (prefer_proxy and proxy) else [(False, None), (True, proxy)]
+    last = None
+    for use_proxy, p in attempts:
+        if use_proxy and not p:
+            continue
+        for _ in range(2):
+            try:
+                r = requests.get(url, proxies=p if use_proxy else None, timeout=timeout)
+                r.raise_for_status()
+                return r.json()
+            except Exception as e:  # noqa: BLE001
+                last = e
+    raise last

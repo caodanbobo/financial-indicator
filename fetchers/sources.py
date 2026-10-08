@@ -97,3 +97,109 @@ def fetch_fx_macro():
         "usd_cny": {"value": fx["USD"], "date": fx["date"]},
         "jpy_cny": {"value": fx["JPY"], "date": fx["date"]},
     }
+
+
+# ---------------------------------------------------------------- 加密冻结层
+
+def fetch_crypto_prices():
+    """BTC/ETH 美元价（CoinGecko 免 key）。本机需走系统代理，Actions 直连。"""
+    from . import network
+
+    data = network.get_json(
+        "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd",
+        prefer_proxy=True)
+    today = pd.Timestamp.now().strftime("%Y-%m-%d")
+    return {
+        "btc_usd": {"value": float(data["bitcoin"]["usd"]), "date": today},
+        "eth_usd": {"value": float(data["ethereum"]["usd"]), "date": today},
+    }
+
+
+def fetch_ahr999():
+    """Ahr999 指数（9992100.xyz 第三方免费 API，含 BTC 价与 200 日定投成本可交叉校验）。"""
+    from . import network
+
+    data = network.get_json("https://9992100.xyz/api/ahr999")
+    d = pd.Timestamp.utcfromtimestamp(data["updated_at_unix"]).strftime("%Y-%m-%d")
+    return {"ahr999": {"value": round(float(data["ahr999"]), 4), "date": d}}
+
+
+def fetch_rwa():
+    """美债 RWA 利率（DefiLlama 免 key，响应约 11MB，超时给足）。"""
+    from . import network
+
+    data = network.get_json("https://yields.llama.fi/pools", timeout=90)
+    pools = data["data"]
+    out = {}
+    today = pd.Timestamp.now().strftime("%Y-%m-%d")
+    for key, proj, sym, chain in [("susds_apy", "sky-lending", "SUSDS", "Ethereum"),
+                                  ("sdai_apy", "sky-lending", "SDAI", "Ethereum"),
+                                  ("usdy_apy", "ondo-yield-assets", "USDY", "Ethereum")]:
+        hit = [p for p in pools if p.get("project") == proj
+               and str(p.get("symbol", "")).upper() == sym and p.get("chain") == chain]
+        if not hit:
+            raise ValueError(f"DefiLlama 中未找到 {proj}/{sym}/{chain}")
+        out[key] = {"value": round(float(hit[0]["apy"]), 2), "date": today}
+    return out
+
+
+# ---------------------------------------------------------------- IM 贴水
+
+def _third_friday(year, month):
+    """合约到期日：当月第三个周五。"""
+    import calendar
+
+    c = calendar.Calendar(firstweekday=calendar.MONDAY)
+    fridays = [d for d in c.itermonthdates(year, month)
+               if d.weekday() == 4 and d.month == month]
+    return fridays[2]
+
+
+def fetch_im(cfg_im):
+    """中证1000 现货 + IM 远季合约 → 年化贴水。
+
+    远季合约 = 当前之后的第二个季月（3/6/9/12）合约，如 IM2703 = 2027-03。
+    """
+    today = pd.Timestamp.today()
+    spot_df = ak.stock_zh_index_daily(symbol=cfg_im["spot_index"])
+    spot = spot_df.iloc[-1]
+
+    quarters = []
+    y, m = today.year, today.month
+    for yy in (y, y + 1):
+        for mm in (3, 6, 9, 12):
+            if (yy, mm) > (y, m):
+                quarters.append((yy, mm))
+    fy, fm = quarters[1] if len(quarters) > 1 else quarters[0]
+    code = f"IM{str(fy)[2:]}{fm:02d}"
+
+    fut_df = ak.futures_zh_daily_sina(symbol=code)
+    fut = fut_df.iloc[-1]
+
+    expiry = _third_friday(fy, fm)
+    data_date = pd.Timestamp(str(fut["date"])).date()
+    days = max((expiry - data_date).days, 1)
+    discount = (float(spot["close"]) - float(fut["close"])) / float(spot["close"])
+    ann = discount / days * 365 * 100
+
+    d = str(spot["date"])
+    return {
+        "im_spot": {"value": float(spot["close"]), "date": d},
+        "im_fut": {"value": float(fut["close"]), "date": str(fut["date"]), "code": code},
+        "im_discount_ann": {"value": round(ann, 2), "date": d},
+    }
+
+
+def fetch_csi1000_pe(cfg_im):
+    """中证1000 PE-TTM 与五年分位（乐咕乐股月度数据，61 个点的五年窗口）。"""
+    df = ak.stock_index_pe_lg(symbol=cfg_im["pe_index_name"])
+    df["日期"] = pd.to_datetime(df["日期"])
+    df = df.sort_values("日期")
+    cur = float(df["滚动市盈率"].iloc[-1])
+    last5 = df[df["日期"] >= df["日期"].max() - pd.Timedelta(days=365 * 5)]
+    pct = float((last5["滚动市盈率"] <= cur).mean() * 100)
+    d = df["日期"].iloc[-1].strftime("%Y-%m-%d")
+    return {
+        "csi1000_pe": {"value": round(cur, 2), "date": d},
+        "csi1000_pe_pct5": {"value": round(pct, 0), "date": d},
+    }

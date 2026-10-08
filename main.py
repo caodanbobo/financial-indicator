@@ -304,6 +304,19 @@ def main(local=False):
     macro = fetch_macro(hist_macro, retries)
     macro_rows = build_macro_view(macro, cfg["macro"])
 
+    # ---- 加密冻结层
+    crypto = fetch_group(
+        [(sources.fetch_crypto_prices, ["btc_usd", "eth_usd"]),
+         (sources.fetch_ahr999, ["ahr999"]),
+         (sources.fetch_rwa, ["susds_apy", "sdai_apy", "usdy_apy"])],
+        hist.get("crypto", {}), retries, "加密")
+
+    # ---- IM 贴水（月频）
+    im = fetch_group(
+        [(lambda: sources.fetch_im(cfg["im"]), ["im_spot", "im_fut", "im_discount_ann"]),
+         (lambda: sources.fetch_csi1000_pe(cfg["im"]), ["csi1000_pe", "csi1000_pe_pct5"])],
+        hist.get("im", {}), retries, "IM")
+
     # ---- 落历史
     os.makedirs(history_dir, exist_ok=True)
     snapshot = {
@@ -311,6 +324,8 @@ def main(local=False):
         "anchor": anchor,
         "cards": snapshot_cards,
         "macro": macro,
+        "crypto": crypto,
+        "im": im,
     }
     with open(os.path.join(history_dir, f"{today}.json"), "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=2)
@@ -324,6 +339,51 @@ def main(local=False):
         pts = trends.get(card_cfg["id"], [])
         view["trend_svg"] = generate_site.sparkline(pts, thresholds=trend_thresholds(card_cfg))
 
+    # ahr999 趋势（定投区判定核心指标）
+    ahr_pts = [(d, s["crypto"]["ahr999"]["value"]) for d, s in history
+               if s.get("crypto", {}).get("ahr999", {}).get("value") is not None]
+    cc = cfg["crypto"]
+    ahr_trend = generate_site.sparkline(
+        ahr_pts,
+        thresholds=[(cc["ahr999_bottom"], "#2ba471", f"抄底{cc['ahr999_bottom']:g}"),
+                    (cc["ahr999_top"], "#e5484d", f"上限{cc['ahr999_top']:g}")])
+
+    # ---- 加密 / IM 视图
+    ahr = crypto.get("ahr999", {})
+    ahr_v = ahr.get("value")
+    ahr_zone, ahr_text = ahr999_zone(ahr_v, cc) if ahr_v is not None else ("gray", "无数据")
+    crypto_view = {
+        "rows": [
+            {"label": "BTC", "m": crypto.get("btc_usd"), "fmt": lambda v: f"${v:,.0f}"},
+            {"label": "ETH", "m": crypto.get("eth_usd"), "fmt": lambda v: f"${v:,.2f}"},
+            {"label": "sUSDS APY", "m": crypto.get("susds_apy"), "fmt": lambda v: f"{v:.2f}%"},
+            {"label": "sDAI APY", "m": crypto.get("sdai_apy"), "fmt": lambda v: f"{v:.2f}%"},
+            {"label": "USDY APY", "m": crypto.get("usdy_apy"), "fmt": lambda v: f"{v:.2f}%"},
+        ],
+        "ahr": {"value_text": f"{ahr_v:.4f}" if ahr_v is not None else "—",
+                "zone": ahr_zone, "zone_text": ahr_text,
+                "date": ahr.get("date", "—"), "stale": ahr.get("stale", True),
+                "trend_svg": ahr_trend,
+                "note": "数据源：9992100.xyz（第三方免费）"},
+    }
+
+    ic = cfg["im"]
+    ann = im.get("im_discount_ann", {}).get("value")
+    im_zone, im_text = im_status(ann, ic)
+    fut = im.get("im_fut", {})
+    pe, pct5 = im.get("csi1000_pe", {}), im.get("csi1000_pe_pct5", {})
+    im_view = {
+        "rows": [
+            {"label": "中证1000 现货", "m": im.get("im_spot"), "fmt": lambda v: f"{v:,.0f}"},
+            {"label": f"远季合约 {fut.get('code', '')}", "m": fut, "fmt": lambda v: f"{v:,.1f}"},
+            {"label": "中证1000 PE-TTM", "m": pe, "fmt": lambda v: f"{v:.2f}"},
+            {"label": "PE 五年分位", "m": pct5, "fmt": lambda v: f"{v:.0f}%"},
+        ],
+        "ann_text": f"{ann:.1f}%" if ann is not None else "—",
+        "status_zone": im_zone, "status_text": im_text,
+        "date": fut.get("date", "—"), "stale": im.get("im_discount_ann", {}).get("stale", True),
+    }
+
     # ---- 生成页面
     page_data = {
         "generated_at": now.strftime("%Y-%m-%d %H:%M"),
@@ -333,6 +393,8 @@ def main(local=False):
         "distortion_months": cfg["distortion_months"],
         "cards": view_cards,
         "macro": {"rows": macro_rows},
+        "crypto": crypto_view,
+        "im": im_view,
     }
     out_path = os.path.join(cfg["site_dir"], "index.html")
     generate_site.render(page_data, out_path)
@@ -344,6 +406,49 @@ def main(local=False):
         local_path = os.path.join(cfg["portfolio"]["local_dir"], "index.html")
         generate_site.render(page_data, local_path, extra_html=local_html)
         print(f"local page -> {local_path}（含持仓，仅本地，不上传）")
+
+
+# ---- 加密冻结层 & IM（阶段 4） ----
+
+def fetch_group(specs, hist_section, retries, label):
+    """通用分组抓取：specs = [(fn, [key...])]，失败逐 key 降级历史。"""
+    out = {}
+    for fn, keys in specs:
+        try:
+            got = fetch_with_retry(fn, retries)
+            for k in keys:
+                v = dict(got[k])
+                v["stale"] = False
+                out[k] = v
+        except Exception as e:  # noqa: BLE001
+            for k in keys:
+                old = hist_section.get(k)
+                if old and old.get("value") is not None:
+                    out[k] = {**old, "stale": True}
+                else:
+                    out[k] = {"value": None, "date": "—", "stale": True}
+            print(f"[warn] {label}抓取失败（{keys}），已降级: {type(e).__name__}: {str(e)[:100]}")
+    return out
+
+
+def ahr999_zone(value, cc):
+    """Ahr999 分区：<0.45 抄底区｜0.45–1.2 定投区｜>1.2 超出定投区。"""
+    if value < cc["ahr999_bottom"]:
+        return "green", f"抄底区 · 可大额买入（<{cc['ahr999_bottom']:g}）"
+    if value <= cc["ahr999_top"]:
+        return "yellow", f"定投区（{cc['ahr999_bottom']:g}–{cc['ahr999_top']:g}）"
+    return "red", f"超出定投区（>{cc['ahr999_top']:g}）"
+
+
+def im_status(ann, ic):
+    """IM 年化贴水状态：<6% 灰（不记录）｜6–10% 正常｜>10% 高亮关注窗口。"""
+    if ann is None:
+        return "gray", "无数据"
+    if ann < ic["record_below"]:
+        return "gray", f"贴水 {ann:.1f}% < {ic['record_below']:g}%，不记录"
+    if ann > ic["alert_above"]:
+        return "red", f"年化贴水 {ann:.1f}% > {ic['alert_above']:g}%：关注窗口（需同时缩量企稳，见笔记 01 篇）"
+    return "yellow", f"年化贴水 {ann:.1f}%，正常区间"
 
 
 def cli():

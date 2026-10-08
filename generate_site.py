@@ -77,6 +77,57 @@ def _macro_html(macro):
             '<table class="macro">' + "".join(rows) + "</table></div>")
 
 
+def _fmt_rows(rows):
+    """通用行渲染：rows = [{label, m: {value,date,stale}, fmt}]。"""
+    out = []
+    for r in rows:
+        m = r.get("m") or {}
+        v = m.get("value")
+        val = r["fmt"](v) if v is not None else "—"
+        meta = f"数据日期 {m.get('date', '—')}"
+        if m.get("stale"):
+            meta += "　<b class='stale'>⚠ 数据陈旧</b>"
+        out.append(f"<tr><td>{_e(r['label'])}</td><td class='macro-val'>{_e(val)}</td>"
+                   f"<td class='macro-meta'>{meta}</td></tr>")
+    return "".join(out)
+
+
+def _crypto_html(c):
+    """加密冻结层区块（含 Ahr999 分区与趋势）。"""
+    a = c["ahr"]
+    color = ZONE_COLORS[a["zone"]]
+    meta = f'数据日期 {a["date"]}'
+    if a.get("stale"):
+        meta += "　<b class='stale'>⚠ 数据陈旧（显示上次读数）</b>"
+    ahr_block = (
+        f'<div class="reading"><span class="metric">Ahr999 指数</span>'
+        f'<span class="value">{_e(a["value_text"])}</span></div>'
+        f'<div style="margin:6px 0"><span class="chip" style="background:{color}">{_e(a["zone_text"])}</span></div>'
+        + a.get("trend_svg", "")
+        + f'<div class="meta">{meta}　{_e(a["note"])}</div>'
+    )
+    return ('<div class="card"><div class="card-title">加密（冻结层）</div>'
+            + ahr_block
+            + '<table class="macro">' + _fmt_rows(c["rows"]) + "</table></div>")
+
+
+def _im_html(i):
+    """IM 贴水监控区块（月频）。"""
+    color = ZONE_COLORS[i["status_zone"]]
+    meta = f'数据日期 {i["date"]}'
+    if i.get("stale"):
+        meta += "　<b class='stale'>⚠ 数据陈旧（显示上次读数）</b>"
+    head = (
+        f'<div class="reading"><span class="metric">IM 远季年化贴水</span>'
+        f'<span class="value">{_e(i["ann_text"])}</span></div>'
+        f'<div style="margin:6px 0"><span class="chip" style="background:{color}">{_e(i["status_text"])}</span></div>'
+        f'<div class="meta">{meta}</div>'
+    )
+    return ('<div class="card"><div class="card-title">IM 贴水监控（月频）</div>'
+            + head
+            + '<table class="macro">' + _fmt_rows(i["rows"]) + "</table></div>")
+
+
 def _card_html(card):
     zone = card["zone"]
     color = ZONE_COLORS[zone]
@@ -128,6 +179,8 @@ def render(snapshot, out_path, extra_html=""):
         anchor_meta += "　<b class='stale'>⚠ 数据陈旧</b>"
     anchor_trend = anchor.get("trend_svg", "")
     macro_html = _macro_html(snapshot["macro"]) if snapshot.get("macro") else ""
+    crypto_html = _crypto_html(snapshot["crypto"]) if snapshot.get("crypto") else ""
+    im_html = _im_html(snapshot["im"]) if snapshot.get("im") else ""
 
     distortion_banner = ""
     if snapshot.get("distortion"):
@@ -180,6 +233,8 @@ def render(snapshot, out_path, extra_html=""):
   .macro-val {{ font-size:17px; font-weight:700; white-space:nowrap; }}
   .macro-meta {{ font-size:11px; color:#9aa0a6; text-align:right; }}
   tr.macro-hl td {{ background:#fdf6e7; }}
+  .chip {{ display:inline-block; color:#fff; border-radius:6px; padding:3px 10px;
+          font-size:13px; font-weight:600; }}
   /* ---- 组合模块（仅本地页） ---- */
   .pf-card {{ border-left:6px solid #6b7280; }}
   .pf-title {{ font-size:16px; font-weight:600; margin-bottom:8px; }}
@@ -210,6 +265,8 @@ def render(snapshot, out_path, extra_html=""):
   {distortion_banner}
   {cards_html}
   {macro_html}
+  {crypto_html}
+  {im_html}
   {extra_html}
   <footer>信号灯规则与阈值见个人投资笔记 · 数据为公开行情整理，不构成投资建议</footer>
 </div>
