@@ -66,9 +66,9 @@ def render(snapshot, out_path):
 
     distortion_banner = ""
     if snapshot.get("distortion"):
-        months = "–".join(str(m) for m in snapshot.get("distortion_months", [5, 6, 7]))
+        dm = snapshot.get("distortion_months", [5, 6, 7])
         distortion_banner = (
-            f'<div class="distortion">⬜ 当前为分红季失真期（{months}月）'
+            f'<div class="distortion">⬜ 当前为分红季失真期（{dm[0]}–{dm[-1]}月）'
             "：股息率读数系统性虚高，只记录、不触发动作</div>"
         )
 

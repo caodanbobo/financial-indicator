@@ -107,7 +107,7 @@ def build_card_view(card_cfg, reading, anchor_value, distortion, distortion_mont
             out["distance_text"] = f"距 {nxt} 还需降 {d:.2f}"
 
     if distortion:
-        zone_text = f"⬜ 失真期（{'–'.join(str(m) for m in distortion_months)}月）· 只记录不触发"
+        zone_text = f"⬜ 失真期（{distortion_months[0]}–{distortion_months[-1]}月）· 只记录不触发"
         zone = "gray"
     else:
         zone_text = signals.ZONE_LABELS[zone]

@@ -92,7 +92,7 @@ def eval_pe_card(card_cfg, pe):
     distance = None
     nxt = NEXT_ZONE[zone]
     if nxt == "yellow":
-        distance = round(pe - red_at, 2)   # 需跌破 red_at 才出红灯区
+        distance = round(pe - red_at + 0.01, 2)   # 需跌破 red_at 才出红灯区
     elif nxt == "green":
         distance = round(pe - green_at, 2)
     elif nxt == "green2":
