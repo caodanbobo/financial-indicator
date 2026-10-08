@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-08 21:32",
+  "generated_at": "2026-10-08 13:36",
   "anchor": {
     "value": 1.6899,
     "date": "2026-10-08",
@@ -50,12 +50,12 @@
       "stale": false
     },
     "gold_usd": {
-      "value": 4129.37,
+      "value": 4125.56,
       "date": "2026-10-08",
       "stale": false
     },
     "silver_usd": {
-      "value": 59.18,
+      "value": 59.14,
       "date": "2026-10-08",
       "stale": false
     },
