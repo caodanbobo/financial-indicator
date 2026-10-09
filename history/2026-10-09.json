@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-09 20:37",
+  "generated_at": "2026-10-09 12:52",
   "anchor": {
     "value": 1.6864,
     "date": "2026-10-09",
@@ -50,12 +50,12 @@
       "stale": false
     },
     "gold_usd": {
-      "value": 4180.81,
+      "value": 4173.12,
       "date": "2026-10-09",
       "stale": false
     },
     "silver_usd": {
-      "value": 60.49,
+      "value": 60.35,
       "date": "2026-10-09",
       "stale": false
     },
@@ -82,17 +82,17 @@
   },
   "crypto": {
     "btc_usd": {
-      "value": 83082.0,
+      "value": 82963.0,
       "date": "2026-10-09",
       "stale": false
     },
     "eth_usd": {
-      "value": 2498.75,
+      "value": 2494.87,
       "date": "2026-10-09",
       "stale": false
     },
     "ahr999": {
-      "value": 0.5395,
+      "value": 0.5381,
       "date": "2026-10-09",
       "stale": false
     },
