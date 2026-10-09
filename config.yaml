@@ -65,6 +65,7 @@ site_dir: site
 macro:
   gold_silver_ratio_alert: 85   # 金银比 > 85：市场恐慌区（白银相对低估）
   tips_alert: 2.5               # 10Y TIPS > 2.5%：高息环境，常为黄金底部区间
+  percentile_window_years: 10   # 分位主口径：近 N 年（同时显示全历史分位）
 
 # 趋势图
 trend:

@@ -13,6 +13,7 @@ import time
 from datetime import datetime
 
 import yaml
+import pandas as pd
 
 import generate_site
 import portfolio
@@ -56,6 +57,41 @@ def metric_value(card_cfg, index_data):
 
 # ---- 宏观/避险层 ----
 
+def percentile_info(points, current, window_years=10):
+    """分位信息：当前值在全历史与近 window_years 年中所处分位 + 窗口区间。
+
+    points: [(date_str, value)...] 升序；current: 当前值。返回 dict 或 None。
+    """
+    vals = [v for _, v in points]
+    if len(vals) < 100 or current is None:
+        return None
+    pct_all = sum(1 for v in vals if v <= current) / len(vals) * 100
+    last_d = pd.Timestamp(points[-1][0][:10])
+    cutoff = last_d - pd.Timedelta(days=365 * window_years)
+    win = [v for d, v in points if pd.Timestamp(d[:10]) >= cutoff]
+    if len(win) < 50:
+        win = vals
+    pct_win = sum(1 for v in win if v <= current) / len(win) * 100
+
+    def _disp(p):
+        # 有值高于当前时不允许四舍五入成 100%（会误导）
+        r = round(p)
+        return min(r, 99) if p < 100 else 100
+
+    return {"pct_all": _disp(pct_all), "pct_win": _disp(pct_win),
+            "win_min": round(min(win), 2), "win_max": round(max(win), 2),
+            "window_years": window_years}
+
+
+def percentile_text(info, unit=""):
+    """如：近10年分位 42%（区间 62–126）· 全历史分位 38%"""
+    if not info:
+        return ""
+    lo, hi = info["win_min"], info["win_max"]
+    return (f"近{info['window_years']}年分位 {info['pct_win']}%（区间 {lo:g}–{hi:g}{unit}）"
+            f" · 全历史分位 {info['pct_all']}%")
+
+
 MACRO_FETCHERS = [
     (sources.fetch_gold_cny, ["gold_cny"]),
     (sources.fetch_gold_silver_usd, ["gold_usd", "silver_usd"]),
@@ -92,17 +128,21 @@ def fetch_macro(hist_macro, retries):
     return macro
 
 
-def build_macro_view(macro, macro_cfg):
-    """把宏观读数组装成展示行（含金银比自算与笔记阈值标注）。"""
+def build_macro_view(macro, macro_cfg, pct_infos=None):
+    """把宏观读数组装成展示行（含金银比自算、笔记阈值标注、历史分位）。
+
+    汇率（usd_cny/jpy_cny）只进历史、不上页面——组合模块本地折算仍在用 fetcher。
+    """
+    pct_infos = pct_infos or {}
     rows = []
 
-    def add(key, value_text, note="", highlight=False):
+    def add(key, value_text, note="", highlight=False, sub=""):
         m = macro.get(key)
         if not m or m["value"] is None:
             return
         rows.append({"label": MACRO_LABELS[key], "value_text": value_text,
                      "date": m["date"], "stale": m["stale"], "note": note,
-                     "highlight": highlight})
+                     "highlight": highlight, "sub": sub})
 
     add("gold_cny", f"{macro['gold_cny']['value']:,.1f} 元/g" if macro.get("gold_cny", {}).get("value") else "",
         note="上金所基准价，更新有延迟")
@@ -118,16 +158,16 @@ def build_macro_view(macro, macro_cfg):
                              "stale": macro["gold_usd"]["stale"] or macro["silver_usd"]["stale"]}
         add("gs_ratio", f"{ratio:.1f}",
             note=f"市场恐慌区（白银相对低估，>{macro_cfg['gold_silver_ratio_alert']:g}）" if hi else "",
-            highlight=hi)
+            highlight=hi,
+            sub=percentile_text(pct_infos.get("gs_ratio")))
 
     tips_alert = macro_cfg["tips_alert"]
     t = macro.get("tips", {}).get("value")
     add("tips", f"{t:.2f}%" if t is not None else "",
         note=f"高息环境，常为黄金底部区间（>{tips_alert:g}%）" if t is not None and t > tips_alert else "",
-        highlight=t is not None and t > tips_alert)
+        highlight=t is not None and t > tips_alert,
+        sub=percentile_text(pct_infos.get("tips"), unit="%"))
 
-    add("usd_cny", f"{macro['usd_cny']['value']:.4f}" if macro.get("usd_cny", {}).get("value") else "")
-    add("jpy_cny", f"{macro['jpy_cny']['value']:.4f}" if macro.get("jpy_cny", {}).get("value") else "")
     return rows
 
 
@@ -302,7 +342,21 @@ def main(local=False):
 
     # ---- 宏观/避险层
     macro = fetch_macro(hist_macro, retries)
-    macro_rows = build_macro_view(macro, cfg["macro"])
+
+    # 金银比 / TIPS 历史分位（全历史 + 近 N 年；失败则该指标分位留空，不影响页面）
+    win_years = cfg["macro"].get("percentile_window_years", 10)
+    pct_infos = {}
+    g_cur = (macro.get("gold_usd", {}).get("value") or 0) / (macro.get("silver_usd", {}).get("value") or 1) \
+        if macro.get("gold_usd", {}).get("value") and macro.get("silver_usd", {}).get("value") else None
+    for key, fn, cur in [("gs_ratio", sources.fetch_gs_ratio_series, g_cur),
+                         ("tips", sources.fetch_dfii10_series, macro.get("tips", {}).get("value"))]:
+        try:
+            series = fetch_with_retry(fn, 1)
+            pct_infos[key] = percentile_info(series, cur, win_years)
+        except Exception as e:  # noqa: BLE001
+            print(f"[warn] {key} 历史分位计算失败，本次不显示分位: {type(e).__name__}: {str(e)[:100]}")
+
+    macro_rows = build_macro_view(macro, cfg["macro"], pct_infos)
 
     # ---- 加密冻结层
     crypto = fetch_group(

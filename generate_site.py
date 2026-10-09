@@ -69,8 +69,10 @@ def _macro_html(macro):
             meta += "　<b class='stale'>⚠ 数据陈旧</b>"
         if r.get("note"):
             meta += f"　{_e(r['note'])}"
+        sub = f"<div class='macro-sub'>{_e(r['sub'])}</div>" if r.get("sub") else ""
         rows.append(
-            f"<tr{cls}><td>{_e(r['label'])}</td><td class='macro-val'>{_e(r['value_text'])}</td>"
+            f"<tr{cls}><td>{_e(r['label'])}</td>"
+            f"<td class='macro-val'>{_e(r['value_text'])}{sub}</td>"
             f"<td class='macro-meta'>{meta}</td></tr>"
         )
     return ('<div class="card"><div class="card-title">避险 / 宏观</div>'
@@ -233,6 +235,7 @@ def render(snapshot, out_path, extra_html=""):
   .macro-val {{ font-size:17px; font-weight:700; white-space:nowrap; }}
   .macro-meta {{ font-size:11px; color:#9aa0a6; text-align:right; }}
   tr.macro-hl td {{ background:#fdf6e7; }}
+  .macro-sub {{ font-size:11px; color:#9aa0a6; font-weight:400; margin-top:1px; }}
   .chip {{ display:inline-block; color:#fff; border-radius:6px; padding:3px 10px;
           font-size:13px; font-weight:600; }}
   /* ---- 组合模块（仅本地页） ---- */

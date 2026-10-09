@@ -85,9 +85,10 @@ def fetch_tips():
     r = requests.get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFII10", timeout=30)
     r.raise_for_status()
     df = pd.read_csv(StringIO(r.text))
-    df = df[df["DFII10"] != "."]
+    vals = pd.to_numeric(df["DFII10"], errors="coerce")
+    df = df[vals.notna()]
     last = df.iloc[-1]
-    return {"tips": {"value": float(last["DFII10"]), "date": str(last["observation_date"])}}
+    return {"tips": {"value": float(vals[vals.notna()].iloc[-1]), "date": str(last["observation_date"])}}
 
 
 def fetch_fx_macro():
@@ -203,3 +204,31 @@ def fetch_csi1000_pe(cfg_im):
         "csi1000_pe": {"value": round(cur, 2), "date": d},
         "csi1000_pe_pct5": {"value": round(pct, 0), "date": d},
     }
+
+
+# ---------------------------------------------------------------- 历史序列（分位计算用）
+
+def fetch_dfii10_series():
+    """FRED DFII10 全历史（2003 至今）。返回 [(date_str, value)...] 升序。"""
+    import requests
+    from io import StringIO
+
+    r = requests.get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFII10", timeout=30)
+    r.raise_for_status()
+    df = pd.read_csv(StringIO(r.text))
+    vals = pd.to_numeric(df["DFII10"], errors="coerce")  # 缺失值 '.' 或空 → NaN
+    df = df[vals.notna()]
+    return [(str(d), float(v)) for d, v in zip(df["observation_date"], vals[vals.notna()])]
+
+
+def fetch_gs_ratio_series():
+    """金银比历史日线：新浪伦敦金/伦敦银（futures_foreign_hist，2006 至今）。
+
+    返回 [(date_str, ratio)...] 升序。数据量小（~5k 行），每次构建直接拉，无需缓存。
+    """
+    g = ak.futures_foreign_hist(symbol="XAU")[["date", "close"]]
+    s = ak.futures_foreign_hist(symbol="XAG")[["date", "close"]]
+    df = g.merge(s, on="date", suffixes=("_g", "_s"))
+    df = df[(df["close_g"] > 0) & (df["close_s"] > 0)]
+    return [(str(d), round(float(a) / float(b), 2))
+            for d, a, b in zip(df["date"], df["close_g"], df["close_s"])]
