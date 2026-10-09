@@ -1,0 +1,143 @@
+{
+  "generated_at": "2026-10-09 07:19",
+  "anchor": {
+    "value": 1.6899,
+    "date": "2026-10-08",
+    "stale": false
+  },
+  "cards": {
+    "sh515450": {
+      "value": 4.34,
+      "date": "2026-10-08",
+      "stale": false,
+      "all": {
+        "pe1": 8.33,
+        "pe2": 7.94,
+        "dividend1": 4.34,
+        "dividend2": 4.98,
+        "date": "2026-10-08"
+      }
+    },
+    "sh515180": {
+      "value": 4.23,
+      "date": "2026-10-08",
+      "stale": false,
+      "all": {
+        "pe1": 8.92,
+        "pe2": 10.9,
+        "dividend1": 4.23,
+        "dividend2": 4.19,
+        "date": "2026-10-08"
+      }
+    },
+    "sz159209": {
+      "value": 15.85,
+      "date": "2026-10-08",
+      "stale": false,
+      "all": {
+        "pe1": 17.98,
+        "pe2": 15.85,
+        "dividend1": 3.9,
+        "dividend2": 4.15,
+        "date": "2026-10-08"
+      }
+    }
+  },
+  "macro": {
+    "gold_cny": {
+      "value": 890.47,
+      "date": "2026-10-07",
+      "stale": false
+    },
+    "gold_usd": {
+      "value": 4194.63,
+      "date": "2026-10-09",
+      "stale": false
+    },
+    "silver_usd": {
+      "value": 60.4,
+      "date": "2026-10-09",
+      "stale": false
+    },
+    "tips": {
+      "value": 2.92,
+      "date": "2026-10-07",
+      "stale": false
+    },
+    "usd_cny": {
+      "value": 6.733,
+      "date": "2026-10-09",
+      "stale": false
+    },
+    "jpy_cny": {
+      "value": 0.042571000000000005,
+      "date": "2026-10-09",
+      "stale": false
+    },
+    "gs_ratio": {
+      "value": 69.4,
+      "date": "2026-10-09",
+      "stale": false
+    }
+  },
+  "crypto": {
+    "btc_usd": {
+      "value": 82488.0,
+      "date": "2026-10-09",
+      "stale": false
+    },
+    "eth_usd": {
+      "value": 2497.45,
+      "date": "2026-10-09",
+      "stale": false
+    },
+    "ahr999": {
+      "value": 0.5319,
+      "date": "2026-10-09",
+      "stale": false
+    },
+    "susds_apy": {
+      "value": 3.8,
+      "date": "2026-10-09",
+      "stale": false
+    },
+    "sdai_apy": {
+      "value": 1.25,
+      "date": "2026-10-09",
+      "stale": false
+    },
+    "usdy_apy": {
+      "value": 3.65,
+      "date": "2026-10-09",
+      "stale": false
+    }
+  },
+  "im": {
+    "im_spot": {
+      "value": 7138.584,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "im_fut": {
+      "value": 6846.2,
+      "date": "2026-10-08",
+      "code": "IM2703",
+      "stale": false
+    },
+    "im_discount_ann": {
+      "value": 9.23,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "csi1000_pe": {
+      "value": 28.16,
+      "date": "2026-10-08",
+      "stale": false
+    },
+    "csi1000_pe_pct5": {
+      "value": 74.0,
+      "date": "2026-10-08",
+      "stale": false
+    }
+  }
+}
