@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-10-16 06:08",
+  "generated_at": "2026-10-16 11:45",
   "anchor": {
-    "value": 1.6601,
-    "date": "2026-10-15",
+    "value": 1.648,
+    "date": "2026-10-16",
     "stale": false
   },
   "cards": {
@@ -50,12 +50,12 @@
       "stale": false
     },
     "gold_usd": {
-      "value": 4173.85,
+      "value": 4177.79,
       "date": "2026-10-16",
       "stale": false
     },
     "silver_usd": {
-      "value": 57.56,
+      "value": 57.77,
       "date": "2026-10-16",
       "stale": false
     },
@@ -75,24 +75,24 @@
       "stale": false
     },
     "gs_ratio": {
-      "value": 72.5,
+      "value": 72.3,
       "date": "2026-10-16",
       "stale": false
     }
   },
   "crypto": {
     "btc_usd": {
-      "value": 82042.0,
+      "value": 82641.0,
       "date": "2026-10-16",
       "stale": false
     },
     "eth_usd": {
-      "value": 2442.65,
+      "value": 2476.63,
       "date": "2026-10-16",
       "stale": false
     },
     "ahr999": {
-      "value": 0.519,
+      "value": 0.5266,
       "date": "2026-10-16",
       "stale": false
     },
@@ -114,29 +114,29 @@
   },
   "im": {
     "im_spot": {
-      "value": 6678.649,
-      "date": "2026-10-15",
+      "value": 6681.944,
+      "date": "2026-10-16",
       "stale": false
     },
     "im_fut": {
-      "value": 6387.8,
-      "date": "2026-10-15",
+      "value": 6417.2,
+      "date": "2026-10-16",
       "code": "IM2703",
       "stale": false
     },
     "im_discount_ann": {
-      "value": 10.26,
-      "date": "2026-10-15",
+      "value": 9.39,
+      "date": "2026-10-16",
       "stale": false
     },
     "csi1000_pe": {
-      "value": 26.37,
-      "date": "2026-10-15",
+      "value": 26.36,
+      "date": "2026-10-16",
       "stale": false
     },
     "csi1000_pe_pct5": {
       "value": 69.0,
-      "date": "2026-10-15",
+      "date": "2026-10-16",
       "stale": false
     }
   }
