@@ -1,45 +1,45 @@
 {
-  "generated_at": "2026-10-22 06:23",
+  "generated_at": "2026-10-22 12:14",
   "anchor": {
-    "value": 1.6412,
-    "date": "2026-10-21",
+    "value": 1.6414,
+    "date": "2026-10-22",
     "stale": false
   },
   "cards": {
     "sh515450": {
-      "value": 4.22,
-      "date": "2026-10-21",
+      "value": 4.21,
+      "date": "2026-10-22",
       "stale": false,
       "all": {
-        "pe1": 8.56,
-        "pe2": 7.94,
-        "dividend1": 4.22,
-        "dividend2": 4.97,
-        "date": "2026-10-21"
+        "pe1": 8.6,
+        "pe2": 7.87,
+        "dividend1": 4.21,
+        "dividend2": 5.02,
+        "date": "2026-10-22"
       }
     },
     "sh515180": {
       "value": 4.13,
-      "date": "2026-10-21",
+      "date": "2026-10-22",
       "stale": false,
       "all": {
-        "pe1": 9.13,
-        "pe2": 10.8,
+        "pe1": 9.14,
+        "pe2": 10.62,
         "dividend1": 4.13,
-        "dividend2": 4.23,
-        "date": "2026-10-21"
+        "dividend2": 4.3,
+        "date": "2026-10-22"
       }
     },
     "sz159209": {
-      "value": 15.5,
-      "date": "2026-10-21",
+      "value": 15.23,
+      "date": "2026-10-22",
       "stale": false,
       "all": {
-        "pe1": 17.86,
-        "pe2": 15.5,
-        "dividend1": 3.93,
-        "dividend2": 4.24,
-        "date": "2026-10-21"
+        "pe1": 17.66,
+        "pe2": 15.23,
+        "dividend1": 3.97,
+        "dividend2": 4.32,
+        "date": "2026-10-22"
       }
     }
   },
@@ -50,12 +50,12 @@
       "stale": false
     },
     "gold_usd": {
-      "value": 4100.09,
+      "value": 4070.61,
       "date": "2026-10-22",
       "stale": false
     },
     "silver_usd": {
-      "value": 56.37,
+      "value": 55.84,
       "date": "2026-10-22",
       "stale": false
     },
@@ -75,24 +75,24 @@
       "stale": false
     },
     "gs_ratio": {
-      "value": 72.7,
+      "value": 72.9,
       "date": "2026-10-22",
       "stale": false
     }
   },
   "crypto": {
     "btc_usd": {
-      "value": 82537.0,
+      "value": 81768.0,
       "date": "2026-10-22",
       "stale": false
     },
     "eth_usd": {
-      "value": 2432.46,
+      "value": 2401.23,
       "date": "2026-10-22",
       "stale": false
     },
     "ahr999": {
-      "value": 0.5192,
+      "value": 0.5098,
       "date": "2026-10-22",
       "stale": false
     },
@@ -114,29 +114,29 @@
   },
   "im": {
     "im_spot": {
-      "value": 6780.26,
-      "date": "2026-10-21",
+      "value": 6578.272,
+      "date": "2026-10-22",
       "stale": false
     },
     "im_fut": {
-      "value": 6493.2,
-      "date": "2026-10-21",
+      "value": 6310.8,
+      "date": "2026-10-22",
       "code": "IM2703",
       "stale": false
     },
     "im_discount_ann": {
-      "value": 10.37,
-      "date": "2026-10-21",
+      "value": 10.03,
+      "date": "2026-10-22",
       "stale": false
     },
     "csi1000_pe": {
-      "value": 26.46,
-      "date": "2026-10-21",
+      "value": 25.7,
+      "date": "2026-10-22",
       "stale": false
     },
     "csi1000_pe_pct5": {
-      "value": 69.0,
-      "date": "2026-10-21",
+      "value": 64.0,
+      "date": "2026-10-22",
       "stale": false
     }
   }
