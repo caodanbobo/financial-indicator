@@ -1,0 +1,143 @@
+{
+  "generated_at": "2026-10-30 07:31",
+  "anchor": {
+    "value": 1.6233,
+    "date": "2026-10-29",
+    "stale": false
+  },
+  "cards": {
+    "sh515450": {
+      "value": 4.08,
+      "date": "2026-10-29",
+      "stale": false,
+      "all": {
+        "pe1": 8.86,
+        "pe2": 8.09,
+        "dividend1": 4.08,
+        "dividend2": 4.88,
+        "date": "2026-10-29"
+      }
+    },
+    "sh515180": {
+      "value": 4.01,
+      "date": "2026-10-29",
+      "stale": false,
+      "all": {
+        "pe1": 9.42,
+        "pe2": 10.9,
+        "dividend1": 4.01,
+        "dividend2": 4.19,
+        "date": "2026-10-29"
+      }
+    },
+    "sz159209": {
+      "value": 15.42,
+      "date": "2026-10-29",
+      "stale": false,
+      "all": {
+        "pe1": 17.89,
+        "pe2": 15.42,
+        "dividend1": 3.92,
+        "dividend2": 4.26,
+        "date": "2026-10-29"
+      }
+    }
+  },
+  "macro": {
+    "gold_cny": {
+      "value": 865.31,
+      "date": "2026-10-28",
+      "stale": false
+    },
+    "gold_usd": {
+      "value": 3984.02,
+      "date": "2026-10-30",
+      "stale": false
+    },
+    "silver_usd": {
+      "value": 50.66,
+      "date": "2026-10-30",
+      "stale": false
+    },
+    "tips": {
+      "value": 2.67,
+      "date": "2026-10-28",
+      "stale": false
+    },
+    "usd_cny": {
+      "value": 6.7138,
+      "date": "2026-10-30",
+      "stale": false
+    },
+    "jpy_cny": {
+      "value": 0.042419000000000005,
+      "date": "2026-10-30",
+      "stale": false
+    },
+    "gs_ratio": {
+      "value": 78.6,
+      "date": "2026-10-30",
+      "stale": false
+    }
+  },
+  "crypto": {
+    "btc_usd": {
+      "value": 78438.0,
+      "date": "2026-10-30",
+      "stale": false
+    },
+    "eth_usd": {
+      "value": 2246.42,
+      "date": "2026-10-30",
+      "stale": false
+    },
+    "ahr999": {
+      "value": 0.4639,
+      "date": "2026-10-30",
+      "stale": false
+    },
+    "susds_apy": {
+      "value": 3.8,
+      "date": "2026-10-30",
+      "stale": false
+    },
+    "sdai_apy": {
+      "value": 1.25,
+      "date": "2026-10-30",
+      "stale": false
+    },
+    "usdy_apy": {
+      "value": 3.75,
+      "date": "2026-10-30",
+      "stale": false
+    }
+  },
+  "im": {
+    "im_spot": {
+      "value": 6378.78,
+      "date": "2026-10-29",
+      "stale": false
+    },
+    "im_fut": {
+      "value": 6151.2,
+      "date": "2026-10-29",
+      "code": "IM2703",
+      "stale": false
+    },
+    "im_discount_ann": {
+      "value": 9.24,
+      "date": "2026-10-29",
+      "stale": false
+    },
+    "csi1000_pe": {
+      "value": 24.78,
+      "date": "2026-10-29",
+      "stale": false
+    },
+    "csi1000_pe_pct5": {
+      "value": 58.0,
+      "date": "2026-10-29",
+      "stale": false
+    }
+  }
+}
