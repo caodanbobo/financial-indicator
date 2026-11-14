@@ -218,7 +218,7 @@ def fetch_dfii10_series():
     df = pd.read_csv(StringIO(r.text))
     vals = pd.to_numeric(df["DFII10"], errors="coerce")  # 缺失值 '.' 或空 → NaN
     df = df[vals.notna()]
-    return [(str(d), float(v)) for d, v in zip(df["observation_date"], vals[vals.notna()])]
+    return [(str(d)[:10], float(v)) for d, v in zip(df["observation_date"], vals[vals.notna()])]
 
 
 def fetch_gs_ratio_series():
@@ -230,5 +230,5 @@ def fetch_gs_ratio_series():
     s = ak.futures_foreign_hist(symbol="XAG")[["date", "close"]]
     df = g.merge(s, on="date", suffixes=("_g", "_s"))
     df = df[(df["close_g"] > 0) & (df["close_s"] > 0)]
-    return [(str(d), round(float(a) / float(b), 2))
+    return [(str(d)[:10], round(float(a) / float(b), 2))
             for d, a, b in zip(df["date"], df["close_g"], df["close_s"])]

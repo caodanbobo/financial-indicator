@@ -104,3 +104,15 @@ def eval_pe_card(card_cfg, pe):
         "distance_next": distance,
         "thresholds_cfg": {"red_at": red_at, "green_at": green_at, "green2_at": green2_at},
     }
+
+
+def eval_macro_zone(value, alert, alert_text, normal_text):
+    """金银比 / TIPS 这类"越过阈值 = 机会区"的两档区位。
+
+    ≥ alert → green 机会区；否则 yellow 常态区。
+    返回 {zone, zone_text, distance}，distance=None 表示已在机会区，否则为距门槛差值。
+    """
+    if value >= alert:
+        return {"zone": "green", "zone_text": f"🟢 {alert_text}", "distance": None}
+    return {"zone": "yellow", "zone_text": f"🟡 {normal_text}",
+            "distance": round(alert - value, 2)}

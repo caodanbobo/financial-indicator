@@ -59,8 +59,8 @@ def sparkline(points, thresholds=(), width=320, height=56, line_color="#64748b")
     return "".join(svg) + cap
 
 
-def _macro_html(macro):
-    """避险/宏观区块。"""
+def _macro_html(macro, card_href_prefix="cards/"):
+    """避险/宏观区块（黄金价格行）。"""
     rows = []
     for r in macro["rows"]:
         cls = " class='macro-hl'" if r.get("highlight") else ""
@@ -75,7 +75,9 @@ def _macro_html(macro):
             f"<td class='macro-val'>{_e(r['value_text'])}{sub}</td>"
             f"<td class='macro-meta'>{meta}</td></tr>"
         )
-    return ('<div class="card"><div class="card-title">避险 / 宏观</div>'
+    return ('<div class="card">'
+            f'<div class="card-head"><div class="card-title">避险 / 宏观</div>'
+            + _dl_btn("macro", card_href_prefix) + "</div>"
             '<table class="macro">' + "".join(rows) + "</table></div>")
 
 
@@ -94,7 +96,7 @@ def _fmt_rows(rows):
     return "".join(out)
 
 
-def _crypto_html(c):
+def _crypto_html(c, card_href_prefix="cards/"):
     """加密冻结层区块（含 Ahr999 分区与趋势）。"""
     a = c["ahr"]
     color = ZONE_COLORS[a["zone"]]
@@ -108,12 +110,14 @@ def _crypto_html(c):
         + a.get("trend_svg", "")
         + f'<div class="meta">{meta}　{_e(a["note"])}</div>'
     )
-    return ('<div class="card"><div class="card-title">加密（冻结层）</div>'
+    return ('<div class="card">'
+            f'<div class="card-head"><div class="card-title">加密（冻结层）</div>'
+            + _dl_btn("crypto", card_href_prefix) + "</div>"
             + ahr_block
             + '<table class="macro">' + _fmt_rows(c["rows"]) + "</table></div>")
 
 
-def _im_html(i):
+def _im_html(i, card_href_prefix="cards/"):
     """IM 贴水监控区块（月频）。"""
     color = ZONE_COLORS[i["status_zone"]]
     meta = f'数据日期 {i["date"]}'
@@ -125,12 +129,22 @@ def _im_html(i):
         f'<div style="margin:6px 0"><span class="chip" style="background:{color}">{_e(i["status_text"])}</span></div>'
         f'<div class="meta">{meta}</div>'
     )
-    return ('<div class="card"><div class="card-title">IM 贴水监控（月频）</div>'
+    return ('<div class="card">'
+            f'<div class="card-head"><div class="card-title">IM 贴水监控（月频）</div>'
+            + _dl_btn("im", card_href_prefix) + "</div>"
             + head
             + '<table class="macro">' + _fmt_rows(i["rows"]) + "</table></div>")
 
 
-def _card_html(card):
+def _dl_btn(block_id, card_href_prefix, label="下载卡片 ↓"):
+    """卡片右上角下载按钮，指向 site/cards/<id>.png。"""
+    if not block_id:
+        return ""
+    return (f'<a class="dl" href="{_e(card_href_prefix)}{_e(block_id)}.png" '
+            f'download="{_e(block_id)}.png">{_e(label)}</a>')
+
+
+def _card_html(card, card_href_prefix="cards/"):
     zone = card["zone"]
     color = ZONE_COLORS[zone]
     lines = []
@@ -166,23 +180,28 @@ def _card_html(card):
 
     return (
         f'<div class="card" style="border-left:6px solid {color}">'
-        f'<div class="card-title">{_e(card["name"])}</div>'
+        f'<div class="card-head"><div class="card-title">{_e(card["name"])}</div>'
+        + _dl_btn(card.get("id"), card_href_prefix) + "</div>"
         + "".join(lines)
         + "</div>"
     )
 
 
-def render(snapshot, out_path, extra_html=""):
-    """snapshot: main.py 构建好的展示字典。extra_html 追加在指标卡片之后（本地组合模块用）。"""
-    cards_html = "".join(_card_html(c) for c in snapshot["cards"])
+def render(snapshot, out_path, extra_html="", card_href_prefix="cards/"):
+    """snapshot: main.py 构建好的展示字典。extra_html 追加在指标卡片之后（本地组合模块用）。
+
+    card_href_prefix：下载卡片 PNG 的相对路径前缀（本地页用 ../site/cards/）。
+    """
+    cards_html = "".join(_card_html(c, card_href_prefix) for c in snapshot["cards"])
+    macro_cards_html = "".join(_card_html(c, card_href_prefix) for c in snapshot.get("macro_cards", []))
     anchor = snapshot["anchor"]
     anchor_meta = f'数据日期 {anchor["date"]}'
     if anchor.get("stale"):
         anchor_meta += "　<b class='stale'>⚠ 数据陈旧</b>"
     anchor_trend = anchor.get("trend_svg", "")
-    macro_html = _macro_html(snapshot["macro"]) if snapshot.get("macro") else ""
-    crypto_html = _crypto_html(snapshot["crypto"]) if snapshot.get("crypto") else ""
-    im_html = _im_html(snapshot["im"]) if snapshot.get("im") else ""
+    macro_html = _macro_html(snapshot["macro"], card_href_prefix) if snapshot.get("macro") else ""
+    crypto_html = _crypto_html(snapshot["crypto"], card_href_prefix) if snapshot.get("crypto") else ""
+    im_html = _im_html(snapshot["im"], card_href_prefix) if snapshot.get("im") else ""
 
     distortion_banner = ""
     if snapshot.get("distortion"):
@@ -212,7 +231,13 @@ def render(snapshot, out_path, extra_html=""):
                 border-radius:10px; padding:10px 14px; font-size:13px; margin-bottom:12px; }}
   .card {{ background:#fff; border-radius:12px; padding:14px 16px; margin-bottom:12px;
           box-shadow:0 1px 3px rgba(0,0,0,.06); }}
-  .card-title {{ font-size:16px; font-weight:600; margin-bottom:8px; }}
+  .card-head {{ display:flex; justify-content:space-between; align-items:center;
+               gap:8px; margin-bottom:8px; }}
+  .card-title {{ font-size:16px; font-weight:600; }}
+  .dl {{ flex-shrink:0; font-size:12px; color:#6b7280; text-decoration:none;
+        border:1px solid #e5e7eb; border-radius:999px; padding:3px 10px; white-space:nowrap; }}
+  .dl:hover {{ background:#f3f4f6; }}
+  .dl-group {{ display:flex; gap:6px; flex-shrink:0; }}
   .reading {{ display:flex; justify-content:space-between; align-items:baseline; }}
   .metric {{ font-size:14px; color:#4b5563; }}
   .value {{ font-size:26px; font-weight:700; }}
@@ -261,13 +286,17 @@ def render(snapshot, out_path, extra_html=""):
 <body>
 <div class="wrap">
   <header>
-    <div class="snap">快照 {_e(snapshot["generated_at"])}</div>
+    <div class="card-head">
+      <div class="snap">快照 {_e(snapshot["generated_at"])}</div>
+      <div class="dl-group">{_dl_btn("long", card_href_prefix, "下载长图 ↓")}{_dl_btn("anchor", card_href_prefix)}</div>
+    </div>
     <div class="anchor">10Y 国债 {_e(anchor["value_text"])}　<small>{anchor_meta}</small></div>
     {anchor_trend}
   </header>
   {distortion_banner}
   {cards_html}
   {macro_html}
+  {macro_cards_html}
   {crypto_html}
   {im_html}
   {extra_html}

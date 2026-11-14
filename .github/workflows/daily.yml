@@ -29,6 +29,9 @@ jobs:
       - name: 安装依赖
         run: pip install -r requirements.txt
 
+      - name: 安装中文字体（社交卡片 PNG 渲染用）
+        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+
       - name: 抓取 + 生成页面
         run: python main.py
 

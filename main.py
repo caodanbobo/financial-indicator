@@ -9,12 +9,14 @@ import argparse
 import glob
 import json
 import os
+import re
 import time
 from datetime import datetime
 
 import yaml
 import pandas as pd
 
+import cards
 import generate_site
 import portfolio
 import signals
@@ -39,9 +41,16 @@ def fetch_with_retry(fn, retries):
     raise last
 
 
+SNAPSHOT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}\.json$")
+
+
 def latest_history(history_dir):
-    """返回最近一次历史快照 dict（按文件名日期倒序），没有则 None。"""
-    files = sorted(glob.glob(os.path.join(history_dir, "*.json")), reverse=True)
+    """返回最近一次历史快照 dict（按文件名日期倒序），没有则 None。
+
+    只认 YYYY-MM-DD.json，避免 fx_cache.json 之类的缓存文件被当成快照。
+    """
+    files = sorted((p for p in glob.glob(os.path.join(history_dir, "*.json"))
+                    if SNAPSHOT_RE.match(os.path.basename(p))), reverse=True)
     for path in files:
         try:
             with open(path, encoding="utf-8") as f:
@@ -129,53 +138,85 @@ def fetch_macro(hist_macro, retries):
 
 
 def build_macro_view(macro, macro_cfg, pct_infos=None):
-    """把宏观读数组装成展示行（含金银比自算、笔记阈值标注、历史分位）。
+    """把宏观读数组装成避险/宏观表的展示行（黄金价格行）。
 
+    金银比 / TIPS 升级为独立指标卡（build_macro_indicator_cards）。
     汇率（usd_cny/jpy_cny）只进历史、不上页面——组合模块本地折算仍在用 fetcher。
     """
-    pct_infos = pct_infos or {}
     rows = []
 
-    def add(key, value_text, note="", highlight=False, sub=""):
+    def add(key, value_text, note=""):
         m = macro.get(key)
         if not m or m["value"] is None:
             return
         rows.append({"label": MACRO_LABELS[key], "value_text": value_text,
                      "date": m["date"], "stale": m["stale"], "note": note,
-                     "highlight": highlight, "sub": sub})
+                     "highlight": False, "sub": ""})
 
     add("gold_cny", f"{macro['gold_cny']['value']:,.1f} 元/g" if macro.get("gold_cny", {}).get("value") else "",
         note="上金所基准价，更新有延迟")
     add("gold_usd", f"${macro['gold_usd']['value']:,.2f}" if macro.get("gold_usd", {}).get("value") else "")
-
-    g = macro.get("gold_usd", {}).get("value")
-    s = macro.get("silver_usd", {}).get("value")
-    if g and s:
-        ratio = g / s
-        hi = ratio > macro_cfg["gold_silver_ratio_alert"]
-        macro["gs_ratio"] = {"value": round(ratio, 1),
-                             "date": macro["gold_usd"]["date"],
-                             "stale": macro["gold_usd"]["stale"] or macro["silver_usd"]["stale"]}
-        add("gs_ratio", f"{ratio:.1f}",
-            note=f"市场恐慌区（白银相对低估，>{macro_cfg['gold_silver_ratio_alert']:g}）" if hi else "",
-            highlight=hi,
-            sub=percentile_text(pct_infos.get("gs_ratio")))
-
-    tips_alert = macro_cfg["tips_alert"]
-    t = macro.get("tips", {}).get("value")
-    add("tips", f"{t:.2f}%" if t is not None else "",
-        note=f"高息环境，常为黄金底部区间（>{tips_alert:g}%）" if t is not None and t > tips_alert else "",
-        highlight=t is not None and t > tips_alert,
-        sub=percentile_text(pct_infos.get("tips"), unit="%"))
-
     return rows
+
+
+def recent_series(series, days):
+    """日线序列取近 days 个自然日：[(date_str, value)...]。"""
+    if not series:
+        return []
+    cut = pd.Timestamp(series[-1][0][:10]) - pd.Timedelta(days=days)
+    return [(d, v) for d, v in series if pd.Timestamp(d[:10]) >= cut]
+
+
+def build_macro_indicator_cards(macro, macro_cfg, pct_infos, series_map, trend_days):
+    """金银比 / TIPS 指标卡：区位灯 + 距离 + 门槛 + 近 N 天走势（日线序列）。"""
+    cards = []
+
+    gs = macro.get("gs_ratio", {}).get("value")
+    if gs is not None:
+        alert = macro_cfg["gold_silver_ratio_alert"]
+        z = signals.eval_macro_zone(gs, alert, "白银低估区 · 市场恐慌", "常态区")
+        dist = (f"已在 🟢白银低估区（金银比≥{alert:g}）" if z["distance"] is None
+                else f"距 🟢白银低估区（金银比≥{alert:g}）还差 {z['distance']:g}")
+        pts = recent_series(series_map.get("gs_ratio"), trend_days)
+        ths = [(alert, "#2ba471", f"🟢{alert:g}")]
+        cards.append({
+            "id": "gs_ratio", "name": "金银比（金/银）", "metric_label": "伦敦金 ÷ 伦敦银",
+            "value_text": f"{gs:.1f}",
+            "spread_text": percentile_text(pct_infos.get("gs_ratio")),
+            "zone": z["zone"], "zone_text": z["zone_text"], "distance_text": dist,
+            "threshold_text": f"门槛（金银比）：🟢 ≥{alert:g} 白银低估 · 市场恐慌　🟡 <{alert:g} 常态",
+            "trend_svg": generate_site.sparkline(pts, thresholds=ths),
+            "_points": pts, "_spark_thresholds": ths,
+            "data_date": macro["gs_ratio"]["date"], "stale": macro["gs_ratio"]["stale"], "note": "",
+        })
+
+    t = macro.get("tips", {}).get("value")
+    if t is not None:
+        alert = macro_cfg["tips_alert"]
+        z = signals.eval_macro_zone(t, alert, "黄金底部区 · 高息环境", "常态区")
+        dist = (f"已在 🟢黄金底部区（TIPS≥{alert:g}%）" if z["distance"] is None
+                else f"距 🟢黄金底部区（TIPS≥{alert:g}%）还差 {z['distance']:g}pp")
+        pts = recent_series(series_map.get("tips"), trend_days)
+        ths = [(alert, "#2ba471", f"🟢{alert:g}%")]
+        cards.append({
+            "id": "tips", "name": "美国10Y TIPS", "metric_label": "实际利率（DFII10）",
+            "value_text": f"{t:.2f}%",
+            "spread_text": percentile_text(pct_infos.get("tips"), unit="%"),
+            "zone": z["zone"], "zone_text": z["zone_text"], "distance_text": dist,
+            "threshold_text": f"门槛（10Y TIPS）：🟢 ≥{alert:g}% 黄金底部区 · 高息环境　🟡 <{alert:g}% 常态",
+            "trend_svg": generate_site.sparkline(pts, thresholds=ths),
+            "_points": pts, "_spark_thresholds": ths,
+            "data_date": macro["tips"]["date"], "stale": macro["tips"]["stale"], "note": "",
+        })
+    return cards
 
 
 # ---- 历史趋势 ----
 
 def load_history_series(history_dir, days):
     """按日期升序返回最近 days 天的快照列表 [(date_str, snapshot_dict)...]。"""
-    files = sorted(glob.glob(os.path.join(history_dir, "*.json")))[-days:]
+    files = sorted(p for p in glob.glob(os.path.join(history_dir, "*.json"))
+                   if SNAPSHOT_RE.match(os.path.basename(p)))[-days:]
     out = []
     for path in files:
         try:
@@ -296,6 +337,99 @@ def build_card_view(card_cfg, reading, anchor_value, distortion, distortion_mont
     return out
 
 
+def social_card_specs(page_data, anchor, trends, ahr_pts, cfg):
+    """页面各信息块 → 社交卡片 PNG 的绘制规格（cards.export 消费）。"""
+    Z = generate_site.ZONE_COLORS
+
+    def plain_rows(rows):
+        out = []
+        for r in rows:
+            m = r.get("m") or {}
+            v = m.get("value")
+            val = r["fmt"](v) if v is not None else "—"
+            meta = f"数据日期 {m.get('date', '—')}"
+            if m.get("stale"):
+                meta += "　⚠ 数据陈旧"
+            out.append({"label": r["label"], "value": val, "meta": meta})
+        return out
+
+    def meta_of(date, stale, note=""):
+        m = f"数据日期 {date}"
+        if stale:
+            m += "　⚠ 数据陈旧"
+        if note:
+            m += f"　{note}"
+        return m
+
+    def indicator(id_, title, view, points=(), ths=(), rows=None, note=None):
+        return {
+            "id": id_, "kind": "indicator", "title": title,
+            "metric_label": view.get("metric_label", ""), "value_text": view["value_text"],
+            "sub_text": view.get("spread_text", ""), "zone_color": Z[view["zone"]],
+            "zone_text": view["zone_text"], "distance_text": view.get("distance_text", ""),
+            "threshold_text": view.get("threshold_text", ""),
+            "points": points, "spark_thresholds": list(ths),
+            "rows": rows or [],
+            "date": view.get("data_date") or view.get("date", "—"),
+            "stale": view.get("stale", False),
+            "note": view.get("note", "") if note is None else note,
+        }
+
+    specs = [{
+        "id": "anchor", "kind": "anchor", "title": "中国10Y国债收益率",
+        "value_text": page_data["anchor"]["value_text"],
+        "points": trends["anchor"], "date": anchor["date"], "stale": anchor["stale"],
+    }]
+
+    for v in page_data["cards"]:
+        specs.append(indicator(v["id"], v["name"], v,
+                               points=v.get("_points", []), ths=v.get("_spark_thresholds", [])))
+
+    specs.append({
+        "id": "macro", "kind": "table", "title": "避险 / 宏观",
+        "rows": [{"label": r["label"], "value": r["value_text"],
+                  "meta": meta_of(r["date"], r["stale"], r.get("note", ""))}
+                 for r in page_data["macro"]["rows"]],
+        "date": page_data["generated_at"][:10], "stale": False,
+    })
+
+    for v in page_data["macro_cards"]:
+        specs.append(indicator(v["id"], v["name"], v,
+                               points=v.get("_points", []), ths=v.get("_spark_thresholds", [])))
+
+    cc = cfg["crypto"]
+    ahr_view = {"metric_label": "Ahr999 指数",
+                "value_text": page_data["crypto"]["ahr"]["value_text"],
+                "zone": page_data["crypto"]["ahr"]["zone"],
+                "zone_text": page_data["crypto"]["ahr"]["zone_text"],
+                "threshold_text": (f"门槛（Ahr999）：🟢🟢 <{cc['ahr999_bottom']:g} 抄底区　"
+                                   f"🟡 {cc['ahr999_bottom']:g}–{cc['ahr999_top']:g} 定投区　"
+                                   f"🔴 >{cc['ahr999_top']:g}"),
+                "data_date": page_data["crypto"]["ahr"]["date"],
+                "stale": page_data["crypto"]["ahr"]["stale"],
+                "note": page_data["crypto"]["ahr"]["note"]}
+    specs.append(indicator(
+        "crypto", "加密（冻结层）", ahr_view,
+        points=ahr_pts,
+        ths=[(cc["ahr999_bottom"], "#2ba471", f"抄底{cc['ahr999_bottom']:g}"),
+             (cc["ahr999_top"], "#e5484d", f"上限{cc['ahr999_top']:g}")],
+        rows=plain_rows(page_data["crypto"]["rows"]),
+    ))
+
+    ic = cfg["im"]
+    im_view = {"value_text": page_data["im"]["ann_text"],
+               "zone": page_data["im"]["status_zone"],
+               "zone_text": page_data["im"]["status_text"],
+               "date": page_data["im"]["date"],
+               "stale": page_data["im"]["stale"],
+               "note": "",
+               "threshold_text": (f"门槛（IM 年化贴水）：<{ic['record_below']:g}% 不记录　"
+                                  f"{ic['record_below']:g}–{ic['alert_above']:g}% 正常　>{ic['alert_above']:g}% 关注窗口")}
+    specs.append(indicator("im", "IM 贴水监控（月频）", im_view,
+                           rows=plain_rows(page_data["im"]["rows"])))
+    return specs
+
+
 def main(local=False):
     cfg = load_config()
     history_dir = cfg["history_dir"]
@@ -337,26 +471,38 @@ def main(local=False):
             reading = {"value": old["value"], "date": old["date"], "stale": True}
             print(f"[warn] {cid} 抓取失败，降级到 {old['date']}: {e}")
         snapshot_cards[cid] = reading
-        view_cards.append(build_card_view(card_cfg, reading, anchor["value"],
-                                          distortion, cfg["distortion_months"]))
+        view = build_card_view(card_cfg, reading, anchor["value"],
+                               distortion, cfg["distortion_months"])
+        view["id"] = cid
+        view_cards.append(view)
 
     # ---- 宏观/避险层
     macro = fetch_macro(hist_macro, retries)
 
+    # 金银比自算（金 ÷ 银），供指标卡与分位使用
+    g = macro.get("gold_usd", {}).get("value")
+    s = macro.get("silver_usd", {}).get("value")
+    if g and s:
+        macro["gs_ratio"] = {"value": round(g / s, 1),
+                             "date": macro["gold_usd"]["date"],
+                             "stale": macro["gold_usd"]["stale"] or macro["silver_usd"]["stale"]}
+
     # 金银比 / TIPS 历史分位（全历史 + 近 N 年；失败则该指标分位留空，不影响页面）
     win_years = cfg["macro"].get("percentile_window_years", 10)
     pct_infos = {}
-    g_cur = (macro.get("gold_usd", {}).get("value") or 0) / (macro.get("silver_usd", {}).get("value") or 1) \
-        if macro.get("gold_usd", {}).get("value") and macro.get("silver_usd", {}).get("value") else None
-    for key, fn, cur in [("gs_ratio", sources.fetch_gs_ratio_series, g_cur),
+    macro_series = {}
+    for key, fn, cur in [("gs_ratio", sources.fetch_gs_ratio_series, macro.get("gs_ratio", {}).get("value")),
                          ("tips", sources.fetch_dfii10_series, macro.get("tips", {}).get("value"))]:
         try:
             series = fetch_with_retry(fn, 1)
+            macro_series[key] = series
             pct_infos[key] = percentile_info(series, cur, win_years)
         except Exception as e:  # noqa: BLE001
             print(f"[warn] {key} 历史分位计算失败，本次不显示分位: {type(e).__name__}: {str(e)[:100]}")
 
+    trend_days = cfg.get("trend", {}).get("days", 90)
     macro_rows = build_macro_view(macro, cfg["macro"], pct_infos)
+    macro_cards = build_macro_indicator_cards(macro, cfg["macro"], pct_infos, macro_series, trend_days)
 
     # ---- 加密冻结层
     crypto = fetch_group(
@@ -385,13 +531,18 @@ def main(local=False):
         json.dump(snapshot, f, ensure_ascii=False, indent=2)
 
     # ---- 趋势（含今天刚落的快照）
-    trend_days = cfg.get("trend", {}).get("days", 90)
     history = load_history_series(history_dir, trend_days)
     trends = build_trends(history, cfg["cards"], trend_days)
     anchor_trend = generate_site.sparkline(trends["anchor"])
-    for card_cfg, view in zip([c for c in cfg["cards"] if c["id"] in snapshot_cards], view_cards):
+    views_by_id = {v["id"]: v for v in view_cards}
+    for card_cfg in cfg["cards"]:
+        v = views_by_id.get(card_cfg["id"])
+        if not v:
+            continue
         pts = trends.get(card_cfg["id"], [])
-        view["trend_svg"] = generate_site.sparkline(pts, thresholds=trend_thresholds(card_cfg))
+        ths = trend_thresholds(card_cfg)
+        v["_points"], v["_spark_thresholds"] = pts, ths
+        v["trend_svg"] = generate_site.sparkline(pts, thresholds=ths)
 
     # ahr999 趋势（定投区判定核心指标）
     ahr_pts = [(d, s["crypto"]["ahr999"]["value"]) for d, s in history
@@ -447,6 +598,7 @@ def main(local=False):
         "distortion_months": cfg["distortion_months"],
         "cards": view_cards,
         "macro": {"rows": macro_rows},
+        "macro_cards": macro_cards,
         "crypto": crypto_view,
         "im": im_view,
     }
@@ -454,11 +606,22 @@ def main(local=False):
     generate_site.render(page_data, out_path)
     print(f"done. snapshot -> {history_dir}/{today}.json, page -> {out_path}")
 
+    # ---- 社交卡片 PNG（site/cards/，页面"下载卡片"按钮指向这里）
+    specs = social_card_specs(page_data, anchor, trends, ahr_pts, cfg)
+    written = cards.export(specs, os.path.join(cfg["site_dir"], "cards"))
+    if written:
+        print(f"cards -> {len(written)} 张 PNG @ {cfg['site_dir']}/cards/")
+    long_path = cards.export_long(specs, os.path.join(cfg["site_dir"], "cards", "long.png"),
+                                  page_data["generated_at"])
+    if long_path:
+        print(f"long -> {long_path}")
+
     # ---- 本地组合页（含持仓，仅在 --local 时生成，输出到 local/，绝不上传）
     if local:
         local_html, _ = portfolio.build_section(cfg)
         local_path = os.path.join(cfg["portfolio"]["local_dir"], "index.html")
-        generate_site.render(page_data, local_path, extra_html=local_html)
+        generate_site.render(page_data, local_path, extra_html=local_html,
+                             card_href_prefix="../site/cards/")
         print(f"local page -> {local_path}（含持仓，仅本地，不上传）")
 
 
