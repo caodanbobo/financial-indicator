@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-14 16:38",
+  "generated_at": "2026-11-14 09:11",
   "anchor": {
     "value": 1.6123,
     "date": "2026-11-13",
@@ -82,12 +82,12 @@
   },
   "crypto": {
     "btc_usd": {
-      "value": 67028.0,
+      "value": 67084.0,
       "date": "2026-11-14",
       "stale": false
     },
     "eth_usd": {
-      "value": 1896.64,
+      "value": 1900.27,
       "date": "2026-11-14",
       "stale": false
     },
